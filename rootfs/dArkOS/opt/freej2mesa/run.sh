@@ -1,39 +1,39 @@
 #!/bin/bash
 
-# 设置Java环境
+# Set up Java environment
 export JAVA_TOOL_OPTIONS='-Xverify:none -Djava.util.prefs.systemRoot=./.java -Djava.util.prefs.userRoot=./.java/.userPrefs -Djava.library.path=./'
 
-# 切换到脚本所在目录
+# Change to the script directory
 cd "$(dirname "$0")"
 
-# 获取游戏路径
+# Get game path
 GAME_PATH="$1"
 
-# 从路径中提取分辨率（如 /roms/j2me/320x240/game.jar 中的 320x240）
+# Extract resolution from the path (e.g. 320x240 in /roms/j2me/320x240/game.jar)
 WIDTH=320
 HEIGHT=240
 
 if [ -n "$GAME_PATH" ]; then
-    # 尝试从路径中匹配分辨率模式（如 320x240, 640x480 等）
+    # Try to match a resolution pattern in the path (e.g. 320x240, 640x480)
     RESOLUTION=$(echo "$GAME_PATH" | grep -oP '\d{2,4}x\d{2,4}' | head -1)
     if [ -n "$RESOLUTION" ]; then
         WIDTH=$(echo "$RESOLUTION" | cut -d'x' -f1)
         HEIGHT=$(echo "$RESOLUTION" | cut -d'x' -f2)
-        echo "从路径解析分辨率: ${WIDTH}x${HEIGHT}"
+        echo "Resolution parsed from path: ${WIDTH}x${HEIGHT}"
     else
-        echo "未从路径解析到分辨率，使用默认: ${WIDTH}x${HEIGHT}"
+        echo "No resolution found in path, using default: ${WIDTH}x${HEIGHT}"
     fi
 fi
 
-# 如果命令行指定了宽度和高度，则使用命令行参数
+# If width and height are given on the command line, use them
 if [ -n "$2" ] && [ -n "$3" ]; then
     WIDTH="$2"
     HEIGHT="$3"
-    echo "使用命令行指定分辨率: ${WIDTH}x${HEIGHT}"
+    echo "Using resolution from command line: ${WIDTH}x${HEIGHT}"
 fi
 
-echo "启动游戏: $GAME_PATH"
-echo "分辨率: ${WIDTH}x${HEIGHT}"
+echo "Launching game: $GAME_PATH"
+echo "Resolution: ${WIDTH}x${HEIGHT}"
 
-# 启动游戏
+# Launch game
 java -jar freej2me-sdl.jar "$GAME_PATH" "$WIDTH" "$HEIGHT" 100

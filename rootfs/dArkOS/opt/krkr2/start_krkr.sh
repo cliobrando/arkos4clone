@@ -74,7 +74,7 @@ fi
 
 GAME_PATH="$1"
 
-# 如果是相对路径，转为绝对路径
+# If it is a relative path, convert it to an absolute path
 if [[ "$GAME_PATH" != /* ]]; then
     GAME_PATH="$(pwd)/$GAME_PATH"
 fi
@@ -85,27 +85,27 @@ if [ ! -f "$GAME_PATH" ]; then
     exit 1
 fi
 
-# 获取游戏目录
+# Get game directory
 GAME_DIR="$(dirname "$GAME_PATH")"
 
-# 复制配置文件到游戏目录（如果不存在）
+# Copy config file into the game directory (if missing)
 if [ -f "${SCRIPT_DIR}/Kirikiroid2Preference.xml" ] && [ ! -f "${GAME_DIR}/Kirikiroid2Preference.xml" ]; then
     cp "${SCRIPT_DIR}/Kirikiroid2Preference.xml" "${GAME_DIR}/Kirikiroid2Preference.xml"
 fi
 
-# 设置库路径
+# Set library path
 export LD_LIBRARY_PATH="${SCRIPT_DIR}/lib:${LD_LIBRARY_PATH}"
 
-# GO-Super 手柄配置
+# GO-Super gamepad config
 export SDL_GAMECONTROLLERCONFIG="190000004b4800000011000000010000,GO-Super Gamepad,x:b2,a:b1,b:b0,y:b3,back:b12,start:b13,dpleft:b10,dpdown:b9,dpright:b11,dpup:b8,leftshoulder:b4,lefttrigger:b6,rightshoulder:b5,righttrigger:b7,leftstick:b14,rightstick:b15,leftx:a0,lefty:a1,rightx:a2,righty:a3,platform:Linux,"
 
-# 切换到游戏目录
+# Change to game directory
 cd "$GAME_DIR"
 
-# 启动引擎（不用 exec，让 cleanup 能正常执行）
+# Launch engine (not via exec, so cleanup runs properly)
 "${SCRIPT_DIR}/bin/krkr2" "$GAME_PATH"
 
-# 游戏退出后清理 swap
+# Clean up swap after the game exits
 cleanup_swap
 
 exit $?

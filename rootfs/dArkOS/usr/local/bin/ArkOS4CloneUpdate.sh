@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# ArkOS4Clone 设备端升级入口 (对应 dArkOS 的 Update.sh)
-# 放在设备上原 Update.sh 的位置,用户在设置里点"更新"时执行
-# 离线模式: 把 ArkOS4CloneUpdate.sh 放进 /roms/update (或 /roms2/update),
-#          对应日期的分卷放 /roms/update/<日期>/; 检测到本地脚本就直接执行,不走联网;
-#          成功后自动删掉用过的脚本和分卷日期文件夹
+# ArkOS4Clone on-device update entry point (counterpart of dArkOS's Update.sh)
+# Placed where the original Update.sh lives on the device; runs when the user taps "Update" in settings
+# Offline mode: put ArkOS4CloneUpdate.sh in /roms/update (or /roms2/update),
+#          and the split archives for the matching date in /roms/update/<date>/; if a local script is found it runs directly, without going online;
+#          on success the used script and the dated archive folders are deleted automatically
 
 if [[ "$(stat -c "%U" /home/ark)" != "ark" ]]; then
   printf "Fixing home folder permissions.  Please wait..."
@@ -24,7 +24,7 @@ sudo timedatectl set-ntp 1
 
 LOCATION="https://raw.githubusercontent.com/lcdyk0517/arkos4clone-updates/master/update_files"
 
-# ---- 离线模式检测: 本地已有升级脚本就直接用 ----
+# ---- Offline mode detection: use a local update script if one exists ----
 LOCAL_DIR=""
 for d in /roms/update /roms2/update; do
   if [ -f "$d/ArkOS4CloneUpdate.sh" ]; then
@@ -50,19 +50,19 @@ fi
 
 sudo chmod -v 777 "$RUN_SCRIPT" | tee -a "$LOG_FILE"
 
-# 升级脚本成功后会自删, 日期要先取出来供离线清理用
+# The update script deletes itself on success, so grab the date first for offline cleanup
 UPDATE_DATE="$(grep -m1 '^UPDATE_DATE=' "$RUN_SCRIPT" 2>/dev/null | tr -dc '0-9')"
 
 "$RUN_SCRIPT"
 
 if [ $? -ne 187 ]; then
-  # 具体错误已由升级脚本弹窗说明; 离线脚本保留在原地便于排查, 只清理联网下载的脚本
+  # The specific error was already shown in a popup by the update script; the offline script is left in place for troubleshooting, only a downloaded script is cleaned up
   printf "There was an error with attempting this update." | tee -a "$LOG_FILE"
   if [ -z "$LOCAL_DIR" ] && [ -f "$RUN_SCRIPT" ]; then
     rm -f "$RUN_SCRIPT"
   fi
 else
-  # 升级完成: 离线模式下删掉用过的脚本 + 所有已应用日期的分卷文件夹, 联网模式下删掉下载的脚本
+  # Update finished: in offline mode delete the used script + all applied dated archive folders, in online mode delete the downloaded script
   if [ -n "$LOCAL_DIR" ]; then
     rm -f "$LOCAL_DIR/ArkOS4CloneUpdate.sh"
     for d in "$LOCAL_DIR"/[0-9]*; do

@@ -2,63 +2,63 @@
 set -euo pipefail
 
 # ============================================================
-# ArkOS4Clone 注入脚本
-# 把仓库里的 boot/ rootfs/ roms/ 目录树 rsync 进挂载好的镜像：
+# ArkOS4Clone injection script
+# rsyncs the repo's boot/ rootfs/ roms/ trees into the mounted image:
 #   boot/dArkOS  + boot/ArkOS   -> $MOUNT_DIR/boot
 #   rootfs/dArkOS + rootfs/ArkOS -> $MOUNT_DIR/root
-#   roms/ (存在时) -> 打包为镜像 /roms.tar，首启解包到扩容后的 p3
-# 由 ARKOS_IMAGE_NAME 决定同步策略:
-#   *dArkOS*: sync dArkOS，权限 777 / 1000:1000
-#   其他    : 先 sync dArkOS 再 sync ArkOS，权限 777 / 1002:1002
+#   roms/ (if present) -> packed as /roms.tar in the image, extracted to the enlarged p3 on first boot
+# ARKOS_IMAGE_NAME determines the sync strategy:
+#   *dArkOS*: sync dArkOS, permissions 777 / 1000:1000
+#   other   : sync dArkOS first, then ArkOS, permissions 777 / 1002:1002
 # ============================================================
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$SCRIPT_DIR"
 MOUNT_DIR="${ARKOS_MNT:-/home/lcdyk/arkos/mnt}"
-# 守卫: MOUNT_DIR 为空或根路径时, 后续的 find/rm -rf 会扫到宿主文件系统
+# Guard: if MOUNT_DIR is empty or the root path, the later find/rm -rf would sweep the host filesystem
 if [[ -z "$MOUNT_DIR" || "$MOUNT_DIR" == "/" || ! -d "$MOUNT_DIR/root/usr/lib" ]]; then
-  echo "[ERROR] MOUNT_DIR 无效: '${MOUNT_DIR:-空}' (镜像未挂载?)"
+  echo "[ERROR] Invalid MOUNT_DIR: '${MOUNT_DIR:-empty}' (image not mounted?)"
   exit 1
 fi
 UPDATE_DATE="$(TZ=Asia/Shanghai date +%Y%m%d)"
 MODDER="kk&lcdyk"
 
-# safe: 尽力而为的操作，失败保留现场并在结尾判定构建失败
+# safe: best-effort operation; on failure keep going and fail the build at the end
 FAIL_COUNT=0
 safe() {
   if ! "$@"; then
-    echo "[WARN] 失败: $*"
+    echo "[WARN] Failed: $*"
     FAIL_COUNT=$((FAIL_COUNT + 1))
   fi
 }
 
-# fatal: 关键操作，失败立即中止构建，避免产出损坏镜像
+# fatal: critical operation; on failure abort the build immediately to avoid producing a broken image
 fatal() {
   if ! "$@"; then
-    echo "[ERROR] 致命失败: $*"
+    echo "[ERROR] Fatal failure: $*"
     exit 1
   fi
 }
 
-echo "== 注入前镜像 root 分区剩余空间 =="
+echo "== Free space on image root partition before injection =="
 df -h "$MOUNT_DIR/root" || true
 
-# boot 分区 (FAT32) 与 root 分区 (ext4) 的 rsync 参数
-# root 用 -p 配合 --chmod=D0777,F0777 让落盘内容即为 777，--chown 指定属主
-# -c 按校验和比对: ArkOS/dArkOS 两棵树的 mtime 相同 (git checkout)，
-# 且 BMP 等文件"同分辨率=同大小"，用 -t 快速比对会漏掉内容不同的覆盖文件
+# rsync options for the boot partition (FAT32) and root partition (ext4)
+# root uses -p with --chmod=D0777,F0777 so written content is 777, --chown sets ownership
+# -c compares by checksum: the ArkOS/dArkOS trees have identical mtimes (git checkout),
+# and files like BMPs have "same resolution = same size", so the quick -t check would miss overrides with different content
 RSYNC_BOOT_OPTS="-rltcD --no-owner --no-group --no-perms --omit-dir-times"
 RSYNC_ROOT_OPTS="-rlptcD --omit-dir-times"
 
-echo "== 解压大型核心 (.so.xz -> .so，已解压则跳过) =="
+echo "== Extracting large cores (.so.xz -> .so, skipped if already extracted) =="
 while IFS= read -r -d '' core_xz; do
   core_so="${core_xz%.xz}"
-  # 压缩包是 git 交付物，保留在原地不删；镜像侧由 rsync --exclude 排除
+  # The archive is a git deliverable, keep it in place; it is excluded from the image via rsync --exclude
   if [[ ! -f "$core_so" ]]; then
-    echo "解压 $core_xz"
+    echo "Extracting $core_xz"
     fatal xz -dk -T0 "$core_xz"
   else
-    echo "已解压过，跳过 $core_xz"
+    echo "Already extracted, skipping $core_xz"
   fi
 done < <(find rootfs -name '*.so.xz' -print0)
 
@@ -67,22 +67,22 @@ sync_boot() {
 }
 
 sync_rootfs() {
-  # $1: rootfs/ 子目录, $2: 属主 (如 1002:1002)
+  # $1: rootfs/ subdirectory, $2: owner (e.g. 1002:1002)
   fatal sudo rsync $RSYNC_ROOT_OPTS --exclude='/home/ark/.config/retroarch*/cores/*.so.xz' --chown="$2" --chmod=D0777,F0777 "rootfs/$1/" "$MOUNT_DIR/root/"
 }
 
 pack_roms_tar() {
-  # roms/ 打包为镜像 /roms.tar (存 p2)，首启 expandtoexfat.sh 扩容 p3 后解包
-  # 注意: 解包命令是 tar -xf /roms.tar -C /，成员路径必须带 roms/ 前缀
-  # 打包在 /tmp 的临时视图里完成: 项目 roms/ 只放增量 (原 roms.tar 没有的东西)，
-  # 原厂骨架在打包时临时合入，不落回项目目录
+  # roms/ is packed as /roms.tar in the image (stored on p2); first-boot expandtoexfat.sh extracts it after growing p3
+  # Note: the extract command is tar -xf /roms.tar -C /, so member paths must have the roms/ prefix
+  # Packing is done in a temporary view under /tmp: the project roms/ only holds additions (things the stock roms.tar lacks),
+  # the stock skeleton is merged in temporarily at pack time and never written back to the project directory
   if [[ ! -d roms ]]; then
-    echo "== 跳过 roms 打包 (无 roms/ 目录) =="
+    echo "== Skipping roms packing (no roms/ directory) =="
     return 0
   fi
-  echo "== 打包 roms/ -> 镜像 /roms.tar =="
+  echo "== Packing roms/ -> image /roms.tar =="
 
-  # 首启需要的空 roms 目录与 pymo 扫描器 (源在 rootfs 树内)
+  # Empty roms directories and the pymo scanner needed on first boot (sources live in the rootfs tree)
   local d
   for d in hbmame native32 bbk flash gametank spmp8000 krkr2 pymo; do
     mkdir -p "roms/$d"
@@ -92,22 +92,22 @@ pack_roms_tar() {
   fi
 
 
-  # 组装打包视图: 项目增量 + 原厂骨架 (首启会重格 p3，骨架必须随 tar 进包)
-  # 内容放在 stage/roms/ 下，tar 成员即带 roms/ 前缀
+  # Assemble the packing view: project additions + stock skeleton (first boot reformats p3, so the skeleton must be in the tar)
+  # Content goes under stage/roms/, so tar members carry the roms/ prefix
   local stage need_mb avail_mb
   stage="$(mktemp -d -t roms_stage.XXXXXXX)"
   need_mb="$(du -sm roms | cut -f1)"
   avail_mb="$(df -Pm /tmp | awk 'NR==2{print $4}')"
   if (( avail_mb < need_mb + 500 )); then
-    echo "[ERROR] /tmp 空间不足: 打包需要约 ${need_mb}MB，仅剩 ${avail_mb}MB"
+    echo "[ERROR] Not enough space in /tmp: packing needs about ${need_mb}MB, only ${avail_mb}MB left"
     exit 1
   fi
   mkdir -p "$stage/roms"
 
-  # 合并顺序: 原厂骨架先进, 项目增量后进 (项目覆盖原厂) --
-  # 否则原厂自带的老 PortMaster/PortMaster.sh 会覆盖构建时新下载的版本
+  # Merge order: stock skeleton first, project additions after (project overrides stock) --
+  # otherwise the stock image's old PortMaster/PortMaster.sh would overwrite the version freshly downloaded at build time
   if [[ -d "$MOUNT_DIR/roms" ]]; then
-    echo "== 合并原厂 roms 骨架 (仅入包，不落项目目录) =="
+    echo "== Merging stock roms skeleton (into the package only, not the project directory) =="
     fatal sudo rsync -a --checksum \
       --exclude 'System Volume Information' \
       --exclude 'EUMONBMP.SYS' \
@@ -119,31 +119,31 @@ pack_roms_tar() {
       "$MOUNT_DIR/roms/" "$stage/roms"/
   fi
 
-  # 原厂 tempthemes 主题包 (若存在): dArkOS 带 freeplay 等 5 主题, ArkOS 为完整 nes-box
+  # Stock tempthemes theme packs (if present): dArkOS ships 5 themes incl. freeplay, ArkOS ships the full nes-box
   if [[ -d "$MOUNT_DIR/root/tempthemes" ]]; then
-    echo "== 合并原厂 tempthemes 主题 (仅入包) =="
+    echo "== Merging stock tempthemes themes (into the package only) =="
     fatal sudo rsync -a "$MOUNT_DIR/root/tempthemes/" "$stage/roms/themes/"
   fi
 
-  # --checksum: 项目必须无条件覆盖原厂 (防同尺寸同 mtime 漏覆盖, 同 logo 事件教训)
-  # 主题 (roms/themes, 含完整 es-theme-nes-box + pymo) 随项目增量直接入 tar
+  # --checksum: the project must unconditionally override stock (avoids missed overrides with same size/mtime, lesson from the logo incident)
+  # Themes (roms/themes, incl. full es-theme-nes-box + pymo) go straight into the tar with the project additions
   fatal sudo rsync -a --checksum \
     \
     roms/ "$stage/roms"/
 
-  # Gamma / ES-logo-changer 不再随包提供 (双保险: 即使经其他路径混入 stage 也删掉)
+  # Gamma / ES-logo-changer are no longer shipped (belt and braces: delete them even if they leak into stage another way)
   safe sudo rm -rf "$stage/roms/tools/Gamma" "$stage/roms/tools/ES-logo-changer" "$stage/roms/tools/PortMaster.sh"
 
-  # -h 解引用符号链接: 设备 exFAT 不支持链接
-  # --owner=0 --group=0: 归档属主归一化为 root (否则会把构建机的 uid 写进包里，
-  # 设备端 exFAT 不支持 chown，解压时每个文件都会报 Operation not permitted)
+  # -h dereferences symlinks: exFAT on the device does not support links
+  # --owner=0 --group=0: normalize archive ownership to root (otherwise the build machine's uid ends up in the package;
+  # exFAT on the device does not support chown, so extraction would report Operation not permitted for every file)
   fatal sudo tar -h --hard-dereference --owner=0 --group=0 -cf "$MOUNT_DIR/root/roms.tar" -C "$stage" roms
   fatal sudo chmod 777 "$MOUNT_DIR/root/roms.tar"
   safe sudo rm -rf "$stage"
 }
 
 cleanup_stock() {
-  # 删除镜像里保留的原厂文件
+  # Delete stock files kept in the image
   safe sudo rm -rf "$MOUNT_DIR/boot/BMPs" "$MOUNT_DIR/boot/ScreenFiles"
   safe sudo rm -rf "$MOUNT_DIR/boot/boot.ini" "$MOUNT_DIR"/boot/*.dtb "$MOUNT_DIR"/boot/*.orig \
     "$MOUNT_DIR"/boot/*.tony "$MOUNT_DIR"/boot/Image "$MOUNT_DIR"/boot/*.bmp \
@@ -164,19 +164,19 @@ cleanup_stock() {
   safe sudo rm -f "$MOUNT_DIR/root/opt/system/Advanced/Reset EmulationStation Controls.sh"
   safe sudo rm -f "$MOUNT_DIR/root/opt/system/Advanced/Fix Global Hotkeys.sh"
   safe sudo rm -f "$MOUNT_DIR/root/etc/emulationstation/es_input.cfg"
-  # tempthemes 机制废弃: 主题已随 roms.tar 交付, 镜像不再携带
+  # tempthemes mechanism is retired: themes ship in roms.tar, the image no longer carries them
   safe sudo rm -rf "$MOUNT_DIR/root/tempthemes"
-  # Mesa 的 Vulkan 驱动 (panfrost/lvp 等) 都驱动不了本机 GPU (Mali kbase)，加载器却会逐个加载，
-  # lvp 还拖进 LLVM，让每个 Vulkan 程序启动多花约 3.6 秒；只留 mali.json
+  # None of Mesa's Vulkan drivers (panfrost/lvp etc.) can drive this GPU (Mali kbase), yet the loader loads each one,
+  # and lvp pulls in LLVM, adding about 3.6s to every Vulkan program's startup; keep only mali.json
   if [[ -d "$MOUNT_DIR/root/usr/share/vulkan/icd.d" ]]; then
     safe sudo find "$MOUNT_DIR/root/usr/share/vulkan/icd.d" -name '*.json' ! -name 'mali.json' -delete
   fi
-  # p3 保持原厂 NTFS 出厂，首启 expandtoexfat.sh 转换为 exFAT 并切换 fstab
-  # (fstab.exfat 保留在 boot 分区供首启使用；tempthemes 废弃删除——主题已随 roms.tar 交付)
+  # p3 stays stock NTFS from the factory; first-boot expandtoexfat.sh converts it to exFAT and switches fstab
+  # (fstab.exfat stays on the boot partition for first boot; tempthemes is retired and deleted -- themes ship in roms.tar)
 }
 
 prune_old_libs() {
-  # 清理原厂镜像里的冗余库 (仅镜像构建做；OTA 不动设备上的库)
+  # Clean redundant libraries out of the stock image (image builds only; OTA does not touch libraries on the device)
   local arch_dir dir f b newest real
   local sdl2_keep=" libSDL2-2.0.so.0.3200.10 libSDL2-2.0.so.0.18.2 "
   local lib_dirs=(
@@ -184,7 +184,7 @@ prune_old_libs() {
     "$MOUNT_DIR/root/usr/lib/aarch64-linux-gnu"
   )
 
-  # ---- 1) 库相关垃圾: 原厂遗留的 .bak/.zip/.last (flycast 备份 23M 等) ----
+  # ---- 1) Library junk: leftover stock .bak/.zip/.last files (23M flycast backup etc.) ----
   local junk_dirs=(
     "${lib_dirs[@]}"
     "$MOUNT_DIR/root/home/ark/.config/retroarch/cores"
@@ -195,13 +195,13 @@ prune_old_libs() {
     [[ -d "$dir" ]] || continue
     while IFS= read -r -d '' f; do
       safe sudo rm -f "$f"
-      echo "  删除垃圾库文件: ${f#$MOUNT_DIR/root}"
+      echo "  Deleting junk library file: ${f#$MOUNT_DIR/root}"
     done < <(sudo find "$dir" -maxdepth 1 \( -name '*.bak' -o -name '*.zip' -o -name '*.last' \) -type f -print0 2>/dev/null)
   done
 
-  # ---- 2) SDL2 历史版本: 每架构保留 0.18.2 (coco/mvem/dragon LD_PRELOAD)
-  #         与该目录里最新的一个版本 (64位=0.3200.10 主版本; 32位原厂无
-  #         0.3200.10, 保留其最新的 0.3000.10, 首启再由 quirks 换成 0.3200.10) ----
+  # ---- 2) Old SDL2 versions: per architecture keep 0.18.2 (coco/mvem/dragon LD_PRELOAD)
+  #         and the newest version in that directory (64-bit = 0.3200.10 main version; 32-bit stock has no
+  #         0.3200.10, keep its newest 0.3000.10, replaced with 0.3200.10 by quirks on first boot) ----
   for arch_dir in "${lib_dirs[@]}"; do
     [[ -d "$arch_dir" ]] || continue
     local keep_newest
@@ -212,29 +212,29 @@ prune_old_libs() {
       b="$(basename "$f")"
       [[ "$keep" == *" $b "* ]] && continue
       safe sudo rm -f "$f"
-      echo "  删除多余 SDL2: $b"
+      echo "  Deleting extra SDL2: $b"
     done
   done
 
-  # ---- 3) SDL2 soname/dev 链接修复: 原厂链接可能指向刚删除的版本,
-  #         重定向到各架构保留的最新版本 (32位=0.3000.10, 64位=0.3200.10) ----
+  # ---- 3) SDL2 soname/dev link fix: stock links may point to versions just deleted,
+  #         redirect to the newest version kept per architecture (32-bit = 0.3000.10, 64-bit = 0.3200.10) ----
   for arch_dir in "${lib_dirs[@]}"; do
     [[ -d "$arch_dir" ]] || continue
     newest=$(ls -1 "$arch_dir" 2>/dev/null | grep -E '^libSDL2-2\.0\.so\.0\.[0-9]+\.[0-9]+$' | sort -V | tail -1)
     [[ -n "$newest" ]] || continue
     if [[ "$(readlink "$arch_dir/libSDL2-2.0.so.0" 2>/dev/null)" != "$newest" ]]; then
       fatal sudo ln -sfn "$newest" "$arch_dir/libSDL2-2.0.so.0"
-      echo "  SDL2 soname 链接修复: libSDL2-2.0.so.0 -> $newest"
+      echo "  SDL2 soname link fix: libSDL2-2.0.so.0 -> $newest"
     fi
     if [[ "$(readlink "$arch_dir/libSDL2.so" 2>/dev/null)" != "libSDL2-2.0.so.0" ]]; then
       fatal sudo ln -sfn "libSDL2-2.0.so.0" "$arch_dir/libSDL2.so"
-      echo "  SDL2 dev 链接修复: libSDL2.so -> libSDL2-2.0.so.0"
+      echo "  SDL2 dev link fix: libSDL2.so -> libSDL2-2.0.so.0"
     fi
   done
 
-  # ---- 4) 同 base 完全相同的多份实体坍缩为链接链 ----
-  # 原厂把本该是符号链接的中间层拷成了实体 (Qt5 三连/solarus/linapple 等)。
-  # 仅当组内所有实体内容一致 (cmp 校验) 才转; 保留版本号最长的一份为实体。
+  # ---- 4) Collapse identical copies sharing a base name into a symlink chain ----
+  # Stock copied intermediate layers that should be symlinks as real files (Qt5 triplets/solarus/linapple etc.).
+  # Only convert when every file in the group is identical (verified with cmp); keep the one with the longest version as the real file.
   local collapse_dirs=(
     "${lib_dirs[@]}"
     "$MOUNT_DIR/root/opt/solarus"
@@ -266,7 +266,7 @@ prune_old_libs() {
         [[ "$f" == "$keep" ]] && continue
         safe sudo rm -f "$f"
         fatal sudo ln -sfn "$(basename "$keep")" "${f%/*}/${f##*/}"
-        echo "  实体转链接: ${f#$MOUNT_DIR/root} -> $(basename "$keep")"
+        echo "  File to link: ${f#$MOUNT_DIR/root} -> $(basename "$keep")"
       done
     done
     unset groups
@@ -277,7 +277,7 @@ if [[ "$ARKOS_IMAGE_NAME" == *dArkOS* ]]; then
   # ============================================================
   # dArkOS (UID=1000)
   # ============================================================
-  echo "=== 检测到 dArkOS 镜像：sync dArkOS，权限 777 / 1000:1000 ==="
+  echo "=== dArkOS image detected: sync dArkOS, permissions 777 / 1000:1000 ==="
   CHOWN_USER="1000:1000"
 
   echo "== sync boot/dArkOS =="
@@ -287,46 +287,46 @@ if [[ "$ARKOS_IMAGE_NAME" == *dArkOS* ]]; then
   sync_rootfs dArkOS 1000:1000
   pack_roms_tar
 
-  echo "== 清理 dArkOS 不需要的文件 =="
+  echo "== Cleaning files dArkOS does not need =="
   cleanup_stock
   safe sudo rm -f "$MOUNT_DIR/root/etc/systemd/system/batt_led.service"
   safe sudo rm -rf "$MOUNT_DIR/root/opt/system/Advanced/Backup dArkOS Settings"
   safe sudo rm -f "$MOUNT_DIR/root/etc/systemd/system/logo.service" \
     "$MOUNT_DIR/root/etc/systemd/system/multi-user.target.wants/logo.service"
 
-  echo "== 设置 dArkOS plymouth 标题 =="
+  echo "== Setting dArkOS plymouth title =="
   safe sudo sed -i "/title\=/c\title\=dArkOS4Clone ($UPDATE_DATE)($MODDER)" "$MOUNT_DIR/root/usr/share/plymouth/themes/text.plymouth"
 
 else
   # ============================================================
-  # ArkOS (UID=1002)：先 dArkOS 后 ArkOS 分层覆盖
+  # ArkOS (UID=1002): dArkOS first, then ArkOS layered on top
   # ============================================================
-  echo "=== 检测到 ArkOS 镜像：先 sync dArkOS 再 sync ArkOS，权限 777 / 1002:1002 ==="
+  echo "=== ArkOS image detected: sync dArkOS first, then ArkOS, permissions 777 / 1002:1002 ==="
   CHOWN_USER="1002:1002"
 
   echo "== sync boot/dArkOS + boot/ArkOS =="
   sync_boot dArkOS
   sync_boot ArkOS
 
-  # 腾出空间
-  echo "== 节约空间 =="
+  # Free up space
+  echo "== Saving space =="
   prune_old_libs
   safe sudo rm -rf "$MOUNT_DIR/root/usr/lib/gcc"
   safe sudo rm -rf "$MOUNT_DIR/root/opt/ppssppgo"
   safe sudo rm -rf "$MOUNT_DIR/root/opt/hypseus"
-  # 原厂构建/开发文件: 设备是消费终端, 无任何现场编译场景
-  # 头文件 / 内核构建目录
+  # Stock build/dev files: the device is a consumer handheld, nothing is ever compiled on it
+  # Header files / kernel build directories
   safe sudo rm -rf "$MOUNT_DIR/root/usr/include" "$MOUNT_DIR/root/usr/src"
-  # 静态库 .a (纯链接期产物 ~91M) 与 libtool .la
-  # -prune 跳过 modules/firmware 目录; -print0/-0 兼容特殊文件名
-  # 注: .pc 与 pkg-config 保留 -- 个别运行时会调用, 且总共 <100KB 无删的价值
+  # Static libraries .a (link-time only artifacts, ~91M) and libtool .la
+  # -prune skips modules/firmware dirs; -print0/-0 handles unusual filenames
+  # Note: .pc files and pkg-config are kept -- some runtimes call them, and together they are <100KB, not worth deleting
   safe sudo find "$MOUNT_DIR/root/usr/lib" "$MOUNT_DIR/root/usr/local/lib" \
     \( -type d \( -name modules -o -name firmware \) \) -prune -o \
     \( -name '*.a' -o -name '*.la' \) -type f -print0 2>/dev/null |
     xargs -0 -r sudo rm -f
-  # cmake 开发元数据 (cmake 本体一并删除)
+  # cmake dev metadata (cmake itself is deleted too)
   safe sudo rm -rf "$MOUNT_DIR/root"/usr/lib/*/cmake "$MOUNT_DIR/root"/usr/lib/cmake
-  # 交叉编译器/构建工具残留 (/usr/bin, ~25M); 保留原生 pkg-config
+  # Leftover cross-compilers/build tools (/usr/bin, ~25M); keep native pkg-config
   safe sudo rm -f "$MOUNT_DIR/root"/usr/bin/aarch64-linux-gnu-* \
     "$MOUNT_DIR/root"/usr/bin/aarch64-unknown-* \
     "$MOUNT_DIR/root"/usr/bin/c89-gcc "$MOUNT_DIR/root"/usr/bin/c99-gcc \
@@ -338,7 +338,7 @@ else
   sync_rootfs ArkOS 1002:1002
   pack_roms_tar
 
-  echo "== 清理 ArkOS 不需要的文件 =="
+  echo "== Cleaning files ArkOS does not need =="
   cleanup_stock
   safe sudo rm -f "$MOUNT_DIR/root/etc/systemd/system/batt_led.service"
   safe sudo rm -f "$MOUNT_DIR/root/etc/systemd/system/ddtbcheck.service"
@@ -353,21 +353,21 @@ else
   safe sudo rm -f "$MOUNT_DIR/root/usr/local/bin/Switch to SD2 for Roms.sh"
   safe sudo rm -f "$MOUNT_DIR/root/usr/local/bin/Switch to main SD for Roms.sh"
 
-  echo "== 删除logo随机 =="
+  echo "== Removing random logo =="
   safe sudo sed -i '/imageshift\.sh/d' "$MOUNT_DIR/root/var/spool/cron/crontabs/root"
   safe sudo rm -f "$MOUNT_DIR/root/home/ark/.config/imageshift.sh"
   safe sudo chown -R $CHOWN_USER "$MOUNT_DIR/root/lib/systemd/system/mpv.service"
   safe sudo chmod 777 "$MOUNT_DIR/root/lib/systemd/system/mpv.service"
 
-  echo "== 设置 ArkOS plymouth 标题 =="
+  echo "== Setting ArkOS plymouth title =="
   safe sudo sed -i "/title\=/c\title\=ArkOS4Clone ($UPDATE_DATE)($MODDER)" "$MOUNT_DIR/root/usr/share/plymouth/themes/text.plymouth"
 fi
 
-echo "== 注入后镜像 root 分区剩余空间 =="
+echo "== Free space on image root partition after injection =="
 df -h "$MOUNT_DIR/root" || true
 cat "$MOUNT_DIR/root/usr/share/plymouth/themes/text.plymouth"
 if (( FAIL_COUNT > 0 )); then
-  echo "[ERROR] 注入过程中有 $FAIL_COUNT 个命令失败，镜像可能不完整，构建中止。"
+  echo "[ERROR] $FAIL_COUNT command(s) failed during injection, the image may be incomplete, aborting build."
   exit 1
 fi
-echo "== 完成 =="
+echo "== Done =="

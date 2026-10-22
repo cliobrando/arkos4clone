@@ -6,18 +6,18 @@ if [[ "$1" == "OpenBor" ]]; then
     basefile=$(basename -- "$file")
     basefilename=${basefile%.*}
     
-    # 清理旧链接
+    # Clean up old links
     rm -f "/opt/OpenBor/Paks/$basefile"
     ln -s "$2" "/opt/OpenBor/Paks/$basefile"
     
-    # 复制配置文件
+    # Copy config files
     if [ ! -f "/opt/OpenBor/Saves/${basefilename}.cfg" ]; then
         cp "/opt/OpenBor/Saves/master.cfg" "/opt/OpenBor/Saves/${basefilename}.cfg"
     fi
     
     cd /opt/OpenBor/ || exit 1
     LD_LIBRARY_PATH=. ./OpenBOR
-    # 只删除当前使用的链接文件
+    # Only delete the link files currently in use
     rm -f "/opt/OpenBor/Paks/$basefile"
 else
     file="$2"
@@ -38,5 +38,5 @@ else
 fi
 
 sudo systemctl stop openborhotkey.service
-# 修正：使用 > 而不是 >>
+# Fix: use > instead of >>
 printf "\033c" > /dev/tty1

@@ -2,32 +2,32 @@
 set -euo pipefail
 
 # ============================================
-# ArkOS4Clone OTA 升级包制作脚本
+# ArkOS4Clone OTA update package build script
 #
-# 用法：
-#   sudo ./build_update_tar.sh           # 构建 ArkOS 版本 (update-arkos.tar)
-#   sudo ./build_update_tar.sh -d        # 构建 dArkOS 版本 (update-darkos.tar)
-#   sudo ./build_update_tar.sh darkos    # 构建 dArkOS 版本
+# Usage:
+#   sudo ./build_update_tar.sh           # Build ArkOS version (update-arkos.tar)
+#   sudo ./build_update_tar.sh -d        # Build dArkOS version (update-darkos.tar)
+#   sudo ./build_update_tar.sh darkos    # Build dArkOS version
 #
-# payload 直接由仓库的 boot/ 与 rootfs/ 目录树生成：
+# The payload is generated directly from the repo's boot/ and rootfs/ trees:
 #   dArkOS: boot/dArkOS + rootfs/dArkOS          (777 / 1000:1000)
-#   ArkOS : 先 dArkOS 再 ArkOS 分层覆盖           (777 / 1002:1002)
+#   ArkOS : dArkOS first, then ArkOS layered on top  (777 / 1002:1002)
 #
-# 输出文件：
-#   ./update-arkos.tar / ./update-darkos.tar （放到设备 /roms/update.tar）
+# Output files:
+#   ./update-arkos.tar / ./update-darkos.tar (place on the device as /roms/update.tar)
 # ============================================
 
-# 解析命令行参数
+# Parse command-line arguments
 ARKOS_IMAGE_NAME=""
 for arg in "$@"; do
-  case "${arg,,}" in  # 转小写比较
+  case "${arg,,}" in  # compare in lowercase
     -d|darkos|darkos4clone)
       ARKOS_IMAGE_NAME="dArkOS"
       ;;
   esac
 done
 
-# 生成版本信息
+# Generate version info
 UPDATE_DATE="$(TZ=Asia/Shanghai date +%Y%m%d)"
 MODDER="kk&lcdyk"
 
@@ -38,7 +38,7 @@ STAGE="${ARKOS_STAGE:-/tmp/_ota_stage}"
 PAYLOAD_BOOT="${STAGE}/payload/boot"
 PAYLOAD_ROOT="${STAGE}/payload/root"
 
-# boot 分区（FAT32）专用 rsync 参数
+# rsync options for the boot partition (FAT32)
 RSYNC_BOOT_OPTS="-rltcD --no-owner --no-group --no-perms --omit-dir-times"
 
 # ----------------- helpers -----------------
@@ -57,23 +57,23 @@ meta_finalize_dedupe() {
   mv -f "${META_FILE}.tmp" "$META_FILE"
 }
 
-# 清理旧的构建目录
+# Clean old build directory
 rm -rf "$STAGE"
 mkdir -p "$PAYLOAD_BOOT" "$PAYLOAD_ROOT"
 
-# OTA 里同样可能带着未解压的大核心
-echo "== 解压大型核心 (.so.xz -> .so，已解压则跳过) =="
+# The OTA may also carry large cores that are still compressed
+echo "== Extracting large cores (.so.xz -> .so, skipped if already extracted) =="
 while IFS= read -r -d '' core_xz; do
   core_so="${core_xz%.xz}"
-  # 压缩包是 git 交付物，保留在原地不删；OTA payload 由 rsync --exclude 排除
+  # The archive is a git deliverable, keep it in place; it is excluded from the OTA payload via rsync --exclude
   if [[ ! -f "$core_so" ]]; then
-    echo "解压 $core_xz"
+    echo "Extracting $core_xz"
     if ! xz -dk -T0 "$core_xz"; then
-      echo "[ERROR] 解压失败: $core_xz"
+      echo "[ERROR] Extraction failed: $core_xz"
       exit 1
     fi
   else
-    echo "已解压过，跳过 $core_xz"
+    echo "Already extracted, skipping $core_xz"
   fi
 done < <(find rootfs -name '*.so.xz' -print0)
 
@@ -82,20 +82,20 @@ if [[ "$ARKOS_IMAGE_NAME" == *dArkOS* ]]; then
   # ============================================================
   # dArkOS (UID=1000)
   # ============================================================
-  echo "=== 构建 dArkOS OTA 包 (777 / 1000:1000) ==="
+  echo "=== Building dArkOS OTA package (777 / 1000:1000) ==="
   VERSION="dArkOS4Clone-${UPDATE_DATE}-${MODDER}"
   CHOWN_USER="1000:1000"
   OUT_TAR="${WORKDIR}/update-darkos.tar"
 
-  echo "== 构建 payload/boot (sync boot/dArkOS) =="
+  echo "== Building payload/boot (sync boot/dArkOS) =="
   rsync $RSYNC_BOOT_OPTS boot/dArkOS/ "$PAYLOAD_BOOT/"
   cp -f boot/dArkOS/clone.sh "$PAYLOAD_BOOT/firstboot.sh"
   touch "$PAYLOAD_BOOT/USE_DTB_SELECT_TO_SELECT_DEVICE" 2>/dev/null || true
 
-  echo "== 构建 payload/root (sync rootfs/dArkOS) =="
-  # OTA 不升级固件与 PortMaster:
-  #  - usr/lib/firmware 固件与系统镜像强绑定，OTA 不动
-  #  - opt/system/Tools 在设备上是 /roms/tools 的 bind 挂载点 (PortMaster 所在)，还要排除 mame 核心，太大了
+  echo "== Building payload/root (sync rootfs/dArkOS) =="
+  # OTA does not update firmware or PortMaster:
+  #  - usr/lib/firmware is tightly bound to the system image, OTA leaves it alone
+  #  - opt/system/Tools is the bind mount point of /roms/tools on the device (where PortMaster lives); also exclude the mame core, it is too big
   rsync -a --checksum \
     --exclude=usr/lib/firmware \
     --exclude=opt/system/Tools \
@@ -105,21 +105,21 @@ if [[ "$ARKOS_IMAGE_NAME" == *dArkOS* ]]; then
 
 else
   # ============================================================
-  # ArkOS (UID=1002)：先 dArkOS 后 ArkOS 分层覆盖
+  # ArkOS (UID=1002): dArkOS first, then ArkOS layered on top
   # ============================================================
-  echo "=== 构建 ArkOS OTA 包 (777 / 1002:1002) ==="
+  echo "=== Building ArkOS OTA package (777 / 1002:1002) ==="
   VERSION="ArkOS4Clone-${UPDATE_DATE}-${MODDER}"
   CHOWN_USER="1002:1002"
   OUT_TAR="${WORKDIR}/update-arkos.tar"
 
-  echo "== 构建 payload/boot (sync boot/dArkOS + boot/ArkOS) =="
+  echo "== Building payload/boot (sync boot/dArkOS + boot/ArkOS) =="
   rsync $RSYNC_BOOT_OPTS boot/dArkOS/ "$PAYLOAD_BOOT/"
   rsync $RSYNC_BOOT_OPTS boot/ArkOS/ "$PAYLOAD_BOOT/"
   cp -f boot/dArkOS/clone.sh "$PAYLOAD_BOOT/firstboot.sh"
   touch "$PAYLOAD_BOOT/USE_DTB_SELECT_TO_SELECT_DEVICE" 2>/dev/null || true
 
-  echo "== 构建 payload/root (sync rootfs/dArkOS + rootfs/ArkOS) =="
-  # OTA 不升级固件与 PortMaster (Tools 为 /roms/tools 的 bind 挂载点，见上) 还要排除 mame 核心，太大了
+  echo "== Building payload/root (sync rootfs/dArkOS + rootfs/ArkOS) =="
+  # OTA does not update firmware or PortMaster (Tools is the bind mount point of /roms/tools, see above); also exclude the mame core, it is too big
   rsync -a --checksum \
     --exclude=usr/lib/firmware \
     --exclude=opt/system/Tools \
@@ -137,28 +137,28 @@ else
 fi
 
 # -----------------------------
-# META：由 payload 自动生成（所有交付文件 0777 + CHOWN_USER）
+# META: generated automatically from the payload (all delivered files 0777 + CHOWN_USER)
 # -----------------------------
-echo "== 写入 VERSION / META =="
+echo "== Writing VERSION / META =="
 cat > "$STAGE/VERSION" <<EOF
 $VERSION
 EOF
 
 meta_init
-# 空格替换为 ?：apply_meta 按词遍历时用 glob 匹配带空格的文件名
+# Replace spaces with ?: apply_meta iterates word by word and uses glob to match filenames containing spaces
 ( cd "$PAYLOAD_ROOT" && find . -mindepth 1 | sed 's|^\./||; s| |?|g' ) | while IFS= read -r p; do
   meta_add "0777" "$CHOWN_USER" "/$p"
 done
 
-# 镜像自带但不在 payload 里的路径
+# Paths that ship with the image but are not in the payload
 if [[ "$ARKOS_IMAGE_NAME" != *dArkOS* ]]; then
-  # ArkOS: 修正镜像自带 mpv.service 的属主
+  # ArkOS: fix ownership of the image's bundled mpv.service
   meta_add "0777" "$CHOWN_USER" "/lib/systemd/system/mpv.service"
 fi
 meta_finalize_dedupe
 
 # -----------------------------
-# install.sh（通用，自动检测 dArkOS/ArkOS）
+# install.sh (generic, auto-detects dArkOS/ArkOS)
 # -----------------------------
 cat > "$STAGE/install.sh" <<'EOF'
 #!/bin/bash
@@ -199,7 +199,7 @@ svc_stop_disable() {
   systemctl reset-failed "$svc" 2>/dev/null || true
 }
 
-# 检测当前系统类型
+# Detect current system type
 PLYMOUTH_THEME="/usr/share/plymouth/themes/text.plymouth"
 IS_DARKOS="false"
 if [[ -f "$PLYMOUTH_THEME" ]]; then
@@ -212,7 +212,7 @@ if [[ -f "$PLYMOUTH_THEME" ]]; then
   fi
 fi
 
-# 根据系统类型设置权限用户
+# Set the owner user based on system type
 if [[ "$IS_DARKOS" == "true" ]]; then
   CHOWN_USER="1000:1000"
 else
@@ -294,7 +294,7 @@ apply_meta() {
   while read -r mode ug path; do
     [[ -z "${mode:-}" || -z "${ug:-}" || -z "${path:-}" ]] && continue
     [[ "${mode:0:1}" == "#" ]] && continue
-    # 使用实际的 CHOWN_USER 替换 META 中的值
+    # Replace the value in META with the actual CHOWN_USER
     for p in $path; do
       [[ -e "$p" || -L "$p" ]] || continue
       chown -h "$CHOWN_USER" "$p" 2>/dev/null || true
@@ -312,10 +312,10 @@ apply_chunk_stream() {
   local dest="/"
   [[ "$target" == "boot" ]] && dest="$BOOT_MP"
 
-  # 直接从 OTA 包流式解到目标分区，不经中转目录
-  # (旧实现先解到 /home/ark/.ota 再 rsync，p2 出厂剩余空间不足以容纳 root 级 chunk)
-  # tar 记录的属主/权限 (root / 1002) 随流生效，META 随后统一兜底 0777+chown
-  # --exclude: 兼容仍携带固件/Tools 的旧版 OTA 包，设备端统一忽略
+  # Stream directly from the OTA package into the target partition, without a staging directory
+  # (the old implementation extracted to /home/ark/.ota first and then rsynced; the free space on stock p2 cannot hold a root-level chunk)
+  # Ownership/permissions recorded in the tar (root / 1002) apply as it streams; META then enforces 0777+chown as a fallback
+  # --exclude: compatible with older OTA packages that still carry firmware/Tools; the device ignores them uniformly
   if ! tar -xO -f "$OTA_TAR_PATH" "$member" 2>>"$OTA_LOG" | tar -x --warning=no-timestamp --exclude='opt/system/Tools' --exclude='usr/lib/firmware' -C "$dest" 2>>"$OTA_LOG"; then
     log "ERROR: chunk apply failed: $member (detail in $OTA_LOG)"
     log "ERROR: OTA aborted to avoid a partially applied update. The package is kept."
@@ -369,8 +369,8 @@ if [[ -f "$BASE/VERSION" && -f "$PLYMOUTH_THEME" ]]; then
   VER_RAW="$(cat "$BASE/VERSION" 2>/dev/null || true)"
   UPDATE_DATE="$(echo "$VER_RAW" | cut -d- -f2)"
   MODDER="$(echo "$VER_RAW" | cut -d- -f3-)"
-  # 新版 payload 已直接使用正式文件名 (atomiswave.sh / es_systems.cfg 等)，
-  # 旧版按系统改名/删除 darkos4* 的逻辑随目录树重构一并移除
+  # The new payload already uses the final filenames (atomiswave.sh / es_systems.cfg etc.),
+  # the old per-system rename/delete darkos4* logic was removed along with the tree restructuring
   if [[ "$IS_DARKOS" == "true" ]]; then
     sed -i "/^title=/c\title=dArkOS4Clone (${UPDATE_DATE})(${MODDER})" "$PLYMOUTH_THEME" 2>/dev/null || true
     log "Plymouth updated: dArkOS4Clone (${UPDATE_DATE})(${MODDER})"
@@ -461,18 +461,18 @@ EOF
 chmod +x "$STAGE/install.sh"
 
 # -----------------------------
-# 打包 uboot 镜像
+# Package uboot images
 # -----------------------------
-echo "== 打包 uboot 镜像 =="
+echo "== Packaging uboot images =="
 mkdir -p "$STAGE/uboot"
 cp -f ./uboot/idbloader.img "$STAGE/uboot/" 2>/dev/null || true
 cp -f ./uboot/uboot.img     "$STAGE/uboot/" 2>/dev/null || true
 cp -f ./uboot/trust.img     "$STAGE/uboot/" 2>/dev/null || true
 
 # -----------------------------
-# 生成 chunks
+# Generate chunks
 # -----------------------------
-echo "== 生成 chunks =="
+echo "== Generating chunks =="
 CHUNK_DIR="$STAGE/chunks"
 rm -rf "$CHUNK_DIR" 2>/dev/null || true
 mkdir -p "$CHUNK_DIR"
@@ -493,15 +493,15 @@ root chunks/40_root_misc.tar
 EOF
 
 # -----------------------------
-# 打包 update.tar
+# Package update.tar
 # -----------------------------
-echo "== 打包 update.tar =="
+echo "== Packaging update.tar =="
 rm -f "$OUT_TAR" 2>/dev/null || true
 tar --numeric-owner --owner=0 --group=0 -C "$STAGE" -cf "$OUT_TAR" \
   VERSION install.sh META CHUNKS chunks uboot
 
 rm -rf "$STAGE"
 
-echo "== 完成 =="
-echo "版本号: $VERSION"
-echo "输出文件: $OUT_TAR"
+echo "== Done =="
+echo "Version: $VERSION"
+echo "Output file: $OUT_TAR"

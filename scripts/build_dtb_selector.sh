@@ -3,12 +3,12 @@ set -euo pipefail
 
 TARGET=dtb_selector
 GO="${GO:-go}"
-# 注意: FLAGS 里不要用 =，用空格
+# Note: do not use = in FLAGS, use spaces
 VERSION="$(TZ=Asia/Shanghai date +%Y.%m.%d)"
 FLAGS=(-ldflags "-s -w -X main.Version=${VERSION}")
 echo "Version     = $VERSION"
 
-# --- 定位脚本目录和项目根目录 ---
+# --- Locate script dir and project root ---
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 if [[ -d "$SCRIPT_DIR/dtbTools" && -d "$SCRIPT_DIR/boot" ]]; then
@@ -16,14 +16,14 @@ if [[ -d "$SCRIPT_DIR/dtbTools" && -d "$SCRIPT_DIR/boot" ]]; then
 elif [[ -d "$SCRIPT_DIR/../dtbTools" && -d "$SCRIPT_DIR/../boot" ]]; then
   ROOT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 else
-  echo "[ERROR] 无法定位项目根目录（需要同时存在 dtbTools/ 和 boot/）" >&2
+  echo "[ERROR] Unable to locate project root (both dtbTools/ and boot/ must exist)" >&2
   exit 1
 fi
 
 MODULE_DIR="$ROOT_DIR/dtbTools"
 OUT_DIR="$ROOT_DIR/boot/dArkOS"
 
-# 源码复制到本地盘编译 (/mnt/d 等 drvfs/9p 上 Go 扫源极慢, 实测 12.7s -> 0.7s)
+# Copy sources to a local disk to build (Go source scanning on drvfs/9p such as /mnt/d is very slow, measured 12.7s -> 0.7s)
 BUILD_DIR="$(mktemp -d -t dtbsrc.XXXXXXX)"
 cp -r "$MODULE_DIR"/. "$BUILD_DIR"/
 trap 'rm -rf "$BUILD_DIR"' EXIT
@@ -34,8 +34,8 @@ echo "MODULE_DIR = $MODULE_DIR"
 echo "OUT_DIR    = $OUT_DIR"
 echo
 
-# --- 平台构建函数 ---
-# 所有 EXE 只用相对 OUT_DIR 的文件名
+# --- Platform build functions ---
+# All EXEs use only filenames relative to OUT_DIR
 build_win32() {
   local exe="${TARGET}_win32.exe"
   echo "Building: Windows 32-bit"
@@ -134,14 +134,14 @@ usage() {
 Usage: $(basename "$0") [--clean] [--all] [--help]
 
 Options:
-  (no arg)    构建默认平台: win32, macos, linux32
-  --all       构建全部平台
-  --clean     删除所有构建产物
-  --help      显示本帮助
+  (no arg)    Build default platforms: win32, macos, linux32
+  --all       Build all platforms
+  --clean     Remove all build artifacts
+  --help      Show this help
 EOF
 }
 
-# --- 参数处理 ---
+# --- Argument handling ---
 case "${1:-}" in
   --clean)
     clean_all
@@ -173,7 +173,7 @@ case "${1:-}" in
     )
     ;;
   *)
-    echo "[ERROR] 未知参数: $1" >&2
+    echo "[ERROR] Unknown argument: $1" >&2
     usage
     exit 1
     ;;

@@ -115,7 +115,7 @@ do_mount() {
     exit 1
   fi
   
-  # p3 按实际文件系统类型挂载 (构建时原厂为 NTFS，首启转换后为 exFAT)
+  # Mount p3 by its actual filesystem type (stock NTFS at build time, exFAT after first-boot conversion)
   roms_fstype=$(blkid -o value -s TYPE "$p3")
   case "$roms_fstype" in
     exfat)

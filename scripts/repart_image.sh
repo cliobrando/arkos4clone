@@ -1,30 +1,30 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ============ 配置 ============
-# ARKOS_QUIET=1 时静默（由 build_image.sh --ci 传入）
+# ============ Configuration ============
+# Quiet when ARKOS_QUIET=1 (passed in by build_image.sh --ci)
 if [[ "${ARKOS_QUIET:-}" == "1" ]]; then
   RSYNC_PROGRESS="--quiet"
 else
   RSYNC_PROGRESS="--info=progress2"
 fi
-P1_TARGET_MB=256              # p1 (boot) 目标容量: 256MiB (原厂 112MiB)
-P2_TARGET_MB=11264            # p2 (root) 目标容量: 11G，设备上不再变动
+P1_TARGET_MB=256              # p1 (boot) target size: 256MiB (stock 112MiB)
+P2_TARGET_MB=11264            # p2 (root) target size: 11G, not changed on the device
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-# 临时目录优先使用 ARKOS_WORK_DIR，否则使用当前目录
+# Temp dir prefers ARKOS_WORK_DIR, otherwise the current directory
 WORK_BASE="${ARKOS_WORK_DIR:-$(pwd)}"
-TMP_DIR="${WORK_BASE}/tmp"    # 备份/恢复目录；脚本会创建、用完后删除
-# P3 文件系统类型和卷标将自动从原始 p3 检测
+TMP_DIR="${WORK_BASE}/tmp"    # Backup/restore dir; created by the script and deleted when done
+# P3 filesystem type and label are detected automatically from the original p3
 # =============================
 
 if [[ $# -lt 1 ]]; then
-  echo "用法: $0 <镜像文件路径>"
+  echo "Usage: $0 <image file path>"
   exit 1
 fi
 IMG="$1"
-[[ -f "$IMG" ]] || { echo "找不到镜像: $IMG"; exit 1; }
+[[ -f "$IMG" ]] || { echo "Image not found: $IMG"; exit 1; }
 
-# 运行期资源（挂载点等）
+# Runtime resources (mount points etc.)
 P1_OLD_MNT="$(mktemp -d -t p1_old.XXXXXX)"
 P1_NEW_MNT="$(mktemp -d -t p1_new.XXXXXX)"
 P3_OLD_MNT="$(mktemp -d -t p3_old.XXXXXX)"
@@ -32,7 +32,7 @@ P3_NEW_MNT="$(mktemp -d -t p3_new.XXXXXX)"
 LOOP=""
 
 settle() {
-  # 等待内核/udev 创建设备节点；在 WSL 等无 udev 环境用 sleep 兜底
+  # Wait for kernel/udev to create device nodes; fall back to sleep in udev-less environments such as WSL
   if command -v udevadm >/dev/null 2>&1; then
     sudo udevadm settle || true
   else
@@ -50,33 +50,33 @@ cleanup() {
   [[ -d "$P1_NEW_MNT" ]] && rmdir "$P1_NEW_MNT" || true
   [[ -d "$P3_OLD_MNT" ]] && rmdir "$P3_OLD_MNT" || true
   [[ -d "$P3_NEW_MNT" ]] && rmdir "$P3_NEW_MNT" || true
-  # 清理 btrfs 临时挂载点
+  # Clean up temporary btrfs mount point
   local btrfs_mnt="${WORK_BASE:-$(pwd)}/btrfs_resize"
   if [[ -d "$btrfs_mnt" ]]; then
     mountpoint -q "$btrfs_mnt" && sudo umount -l "$btrfs_mnt"
     sudo rmdir "$btrfs_mnt" 2>/dev/null
   fi
-  # 解绑当前 loop
+  # Detach current loop
   if [[ -n "${LOOP:-}" ]] && losetup -a | grep -q "^$LOOP:"; then
     sudo losetup -d "$LOOP" || true
   fi
 }
 trap cleanup EXIT
 
-# 解除所有已映射到该镜像的 loop（如果存在）
-echo "== 解除旧 loop（如果存在） =="
+# Detach any loops already mapped to this image (if present)
+echo "== Detaching old loops (if present) =="
 while read -r dev; do
   [[ -n "$dev" ]] && sudo losetup -d "$dev" || true
 done < <(losetup -j "$IMG" | cut -d: -f1)
 
-# 映射镜像到 loop（同时启用分区扫描），原子返回唯一设备名
-echo "== 映射镜像到 loop（带分区） =="
+# Map image to a loop (with partition scan), atomically returning a unique device name
+echo "== Mapping image to loop (with partitions) =="
 LOOP="$(sudo losetup --find --show -P "$IMG")"
 settle
-echo "使用 loop: $LOOP"
+echo "Using loop: $LOOP"
 
-# 清理可能残留的挂载点（设备可能已被其他进程挂载）
-echo "== 清理残留挂载点 =="
+# Clean up possibly leftover mount points (the device may already be mounted by another process)
+echo "== Cleaning up leftover mount points =="
 for part in "${LOOP}p1" "${LOOP}p2" "${LOOP}p3"; do
   if [[ -b "$part" ]]; then
     while read -r mnt; do
@@ -85,24 +85,24 @@ for part in "${LOOP}p1" "${LOOP}p2" "${LOOP}p3"; do
   fi
 done
 
-# 扇区信息
-SECTOR_SIZE="$(sudo blockdev --getss "$LOOP")"  # 常见 512
+# Sector info
+SECTOR_SIZE="$(sudo blockdev --getss "$LOOP")"  # usually 512
 
-# 工具函数：检查 p3 是否存在（机器可读模式）
+# Helper: check whether p3 exists (machine-readable mode)
 has_p3() {
   sudo parted -sm "$LOOP" unit s print | grep -qE '^3:'
 }
 
-# 读取 p1 / p2 / p3 当前大小，计算各自扩容量
+# Read current sizes of p1 / p2 / p3 and compute how much each grows
 PARTED_OUT="$(sudo parted -sm "$LOOP" unit s print)"
 P1_START="$(awk -F: '$1=="1"{gsub(/s/,"",$2); print $2}' <<< "$PARTED_OUT")"
 P1_END="$(awk -F: '$1=="1"{gsub(/s/,"",$3); print $3}' <<< "$PARTED_OUT")"
-[[ -n "${P1_START:-}" && -n "${P1_END:-}" ]] || { echo "未能读取到分区1信息，退出。"; exit 1; }
+[[ -n "${P1_START:-}" && -n "${P1_END:-}" ]] || { echo "Could not read partition 1 info, exiting."; exit 1; }
 P1_CUR_MB=$(( (P1_END - P1_START + 1) * SECTOR_SIZE / 1024 / 1024 ))
 
 CUR_START="$(awk -F: '$1=="2"{gsub(/s/,"",$2); print $2}' <<< "$PARTED_OUT")"
 CUR_END="$(awk -F: '$1=="2"{gsub(/s/,"",$3); print $3}' <<< "$PARTED_OUT")"
-[[ -n "${CUR_END:-}" ]] || { echo "未能读取到分区2信息，退出。"; exit 1; }
+[[ -n "${CUR_END:-}" ]] || { echo "Could not read partition 2 info, exiting."; exit 1; }
 P2_CUR_MB=$(( (CUR_END - CUR_START + 1) * SECTOR_SIZE / 1024 / 1024 ))
 
 P3_CUR_MB=0
@@ -112,70 +112,70 @@ if has_p3; then
   P3_CUR_MB=$(( (P3_END - P3_START + 1) * SECTOR_SIZE / 1024 / 1024 ))
 fi
 
-# p1 扩到固定 256MiB；p2 扩到固定 11G；p3 保持原样 (出厂空盘)
-# roms/ 打包为 /roms.tar 由首启解包
+# Grow p1 to a fixed 256MiB; grow p2 to a fixed 11G; keep p3 as is (empty from factory)
+# roms/ is packed as /roms.tar and extracted on first boot
 BOOT_ADD_MB=$(( P1_TARGET_MB > P1_CUR_MB ? P1_TARGET_MB - P1_CUR_MB : 0 ))
 P2_DELTA=$(( P2_TARGET_MB > P2_CUR_MB ? P2_TARGET_MB - P2_CUR_MB : 0 ))
 
-echo "当前 p1: ${P1_CUR_MB}MiB, p2: ${P2_CUR_MB}MiB (End: $CUR_END), p3: ${P3_CUR_MB}MiB"
-echo "目标: p1 → ${P1_TARGET_MB}MiB (+${BOOT_ADD_MB}), p2 → ${P2_TARGET_MB}MiB (+${P2_DELTA}), p3 保持 ${P3_CUR_MB}MiB"
+echo "Current p1: ${P1_CUR_MB}MiB, p2: ${P2_CUR_MB}MiB (End: $CUR_END), p3: ${P3_CUR_MB}MiB"
+echo "Target: p1 → ${P1_TARGET_MB}MiB (+${BOOT_ADD_MB}), p2 → ${P2_TARGET_MB}MiB (+${P2_DELTA}), p3 stays ${P3_CUR_MB}MiB"
 
-# p3 备份固定放 $TMP_DIR/p3data（与 p1 备份 $TMP_DIR/bootfs 区分，
-# 恢复时按 HAD_P3 标志判断，避免把 boot 备份误恢复进 p3）
+# p3 backup always goes to $TMP_DIR/p3data (kept separate from the p1 backup in $TMP_DIR/bootfs;
+# restore checks the HAD_P3 flag so the boot backup is never restored into p3 by mistake)
 HAD_P3=0
 
-# ======= 第一步：备份 p3 到 TMP_DIR/p3data（若存在） =======
+# ======= Step 1: Back up p3 to TMP_DIR/p3data (if present) =======
 if has_p3; then
   HAD_P3=1
-  echo "检测到 p3，准备备份到 $TMP_DIR/p3data"
+  echo "p3 detected, preparing backup to $TMP_DIR/p3data"
   mkdir -p "$TMP_DIR/p3data"
   P3_DEV="${LOOP}p3"
 
-  # 沿用原厂: 按原类型重建 p3 (原厂镜像为 NTFS)
+  # Same as stock: rebuild p3 with its original type (stock image is NTFS)
   ORIG_P3_FS="$(sudo blkid -s TYPE -o value "$P3_DEV" 2>/dev/null || echo 'vfat')"
   ORIG_P3_LABEL="$(sudo blkid -s LABEL -o value "$P3_DEV" 2>/dev/null || echo 'EASYROMS')"
-  echo "原 p3 类型: $ORIG_P3_FS, 卷标: $ORIG_P3_LABEL, 新 p3 沿用"
+  echo "Original p3 type: $ORIG_P3_FS, label: $ORIG_P3_LABEL, new p3 will reuse them"
 
-  echo "挂载旧 p3 到 $P3_OLD_MNT（优先只读）"
+  echo "Mounting old p3 at $P3_OLD_MNT (read-only preferred)"
   if ! sudo mount -o ro "$P3_DEV" "$P3_OLD_MNT"; then
-    echo "只读挂载失败，尝试普通挂载"
+    echo "Read-only mount failed, trying normal mount"
     sudo mount "$P3_DEV" "$P3_OLD_MNT"
   fi
 
-  echo "备份 p3 -> $TMP_DIR/p3data（rsync -aH --delete，保证目录为“镜像一致”）"
+  echo "Backing up p3 -> $TMP_DIR/p3data (rsync -aH --delete, so the directory is an exact mirror)"
   sudo rsync -aH --delete $RSYNC_PROGRESS "$P3_OLD_MNT"/ "$TMP_DIR/p3data"/
 
-  echo "卸载旧 p3 挂载点"
+  echo "Unmounting old p3 mount point"
   sudo umount "$P3_OLD_MNT"
 else
-  echo "未发现 p3，跳过备份。"
-  # 设置默认值（用于新建 p3）
+  echo "No p3 found, skipping backup."
+  # Set defaults (used when creating the new p3)
   ORIG_P3_FS="exfat"
   ORIG_P3_LABEL="EASYROMS"
-  echo "将使用默认值创建 p3: 文件系统=$ORIG_P3_FS, 卷标=$ORIG_P3_LABEL"
+  echo "Will create p3 with defaults: filesystem=$ORIG_P3_FS, label=$ORIG_P3_LABEL"
 fi
 
-# ======= 第二步：删除 p3 分区（必须清路） =======
-echo "== 删除旧的分区3 =="
+# ======= Step 2: Delete p3 partition (must clear the way) =======
+echo "== Deleting old partition 3 =="
 if sudo parted -s "$LOOP" rm 3 2>/dev/null; then
-  echo "已删除 p3（如果原本存在）"
+  echo "Deleted p3 (if it existed)"
 else
-  echo "未能删除 p3（可能原本就不存在），继续。"
+  echo "Could not delete p3 (it may not have existed), continuing."
 fi
 
-# 再次校验，若仍存在 p3 则终止
+# Check again; abort if p3 still exists
 if has_p3; then
-  echo "错误：p3 仍存在，无法继续扩容。请检查分区表后重试。"
+  echo "Error: p3 still exists, cannot continue resizing. Check the partition table and retry."
   sudo parted "$LOOP" unit s print || true
   exit 1
 fi
 
 if (( BOOT_ADD_MB > 0 )); then
-  # ======= 第三步A：扩容 p1 (boot) =======
-  # p1 后面紧挨着 p2，扩 p1 必须把 p2 的原始数据整体右移：
-  # 备份 p1 内容 → 删除 p1/p2 分区表项 → 镜像文件内原始搬运 p2 数据 →
-  # 重建 256MiB 的 p1 (mkfs 后恢复内容) → 在新起点重建 p2
-  # (boot.ini 用 "load mmc 1:1" 按分区号引导，无 UUID 引用，重建 FAT 安全)
+  # ======= Step 3A: Grow p1 (boot) =======
+  # p2 sits right after p1, so growing p1 requires shifting all of p2's raw data to the right:
+  # back up p1 contents → delete p1/p2 table entries → move p2 raw data inside the image file →
+  # recreate p1 at 256MiB (restore contents after mkfs) → recreate p2 at the new start
+  # (boot.ini boots by partition number with "load mmc 1:1", no UUID references, so rebuilding FAT is safe)
 
   NEW_P1_END=$(( P1_START + P1_TARGET_MB * 1024 * 1024 / SECTOR_SIZE - 1 ))
   NEW_P2_START=$(( NEW_P1_END + 1 ))
@@ -184,35 +184,35 @@ if (( BOOT_ADD_MB > 0 )); then
   MOVE_SRC=$(( CUR_START * SECTOR_SIZE ))
   MOVE_LEN=$(( (CUR_END - CUR_START + 1) * SECTOR_SIZE ))
 
-  # 安全断言：新 p2 起点 1MiB 对齐；搬运目的不越过当前文件尾
+  # Safety assertions: new p2 start is 1MiB-aligned; move destination does not go past the current end of file
   (( NEW_P2_START % (1024 * 1024 / SECTOR_SIZE) == 0 )) \
-    || { echo "错误：新 p2 起点 ${NEW_P2_START}s 未 1MiB 对齐，退出。"; exit 1; }
+    || { echo "Error: new p2 start ${NEW_P2_START}s is not 1MiB-aligned, exiting."; exit 1; }
   IMG_SIZE_BYTES="$(stat -c %s "$IMG")"
   (( MOVE_SRC + MOVE_LEN + SHIFT_BYTES <= IMG_SIZE_BYTES )) \
-    || { echo "错误：p2 搬运目的区域越过镜像尾部，退出。"; exit 1; }
+    || { echo "Error: p2 move destination extends past end of image, exiting."; exit 1; }
 
-  echo "== 备份 p1 (boot) 内容 -> $TMP_DIR/bootfs =="
+  echo "== Backing up p1 (boot) contents -> $TMP_DIR/bootfs =="
   mkdir -p "$TMP_DIR/bootfs"
   ORIG_P1_LABEL="$(sudo blkid -s LABEL -o value "${LOOP}p1" 2>/dev/null || echo 'BOOT')"
-  echo "原 p1 卷标: $ORIG_P1_LABEL (重建后沿用)"
+  echo "Original p1 label: $ORIG_P1_LABEL (reused after rebuild)"
   if ! sudo mount -o ro "${LOOP}p1" "$P1_OLD_MNT"; then
-    echo "只读挂载失败，尝试普通挂载"
+    echo "Read-only mount failed, trying normal mount"
     sudo mount "${LOOP}p1" "$P1_OLD_MNT"
   fi
   sudo rsync -rltD --delete --no-owner --no-group --no-perms --omit-dir-times \
     $RSYNC_PROGRESS "$P1_OLD_MNT"/ "$TMP_DIR/bootfs"/
   sudo umount "$P1_OLD_MNT"
 
-  echo "== 删除旧分区 1/2 (p3 已删；p2 数据仍在镜像文件中) =="
+  echo "== Deleting old partitions 1/2 (p3 already deleted; p2 data is still in the image file) =="
   sudo parted -s "$LOOP" rm 2
   sudo parted -s "$LOOP" rm 1
   sudo partprobe "$LOOP" || true
 
-  echo "== p2 原始数据右移 ${SHIFT_SECTORS} 扇区 (+${BOOT_ADD_MB}MiB), 共 ${P2_CUR_MB}MiB =="
-  # 解绑 loop，直接在镜像文件上搬运（避免 loop 缓存与文件写入不一致）
+  echo "== Shifting p2 raw data right by ${SHIFT_SECTORS} sectors (+${BOOT_ADD_MB}MiB), ${P2_CUR_MB}MiB total =="
+  # Detach loop and move data directly in the image file (avoids loop cache / file write inconsistency)
   sudo losetup -d "$LOOP"
   LOOP=""
-  # 反向分块搬运（块 < 位移量，从尾部往前搬，源/目的重叠也不会踩未读数据）
+  # Move in reverse chunks (chunk < shift, moving from the end backwards, so overlapping src/dst never clobbers unread data)
   CHUNK=$(( 16 * 1024 * 1024 ))
   remaining=$MOVE_LEN
   src_off=$(( MOVE_SRC + MOVE_LEN ))
@@ -225,70 +225,70 @@ if (( BOOT_ADD_MB > 0 )); then
       skip="$src_off" seek="$(( src_off + SHIFT_BYTES ))" count="$n"
     remaining=$(( remaining - n ))
     if [[ "${ARKOS_QUIET:-}" != "1" ]] && (( MOVE_LEN - remaining >= next_report )); then
-      echo "  已搬运 $(( (MOVE_LEN - remaining) / 1024 / 1024 )) / $(( MOVE_LEN / 1024 / 1024 )) MiB"
+      echo "  Moved $(( (MOVE_LEN - remaining) / 1024 / 1024 )) / $(( MOVE_LEN / 1024 / 1024 )) MiB"
       next_report=$(( next_report + 1024 * 1024 * 1024 ))
     fi
   done
   sync
 
-  echo "== 扩大镜像 +$(( P2_DELTA + BOOT_ADD_MB ))MiB =="
+  echo "== Enlarging image +$(( P2_DELTA + BOOT_ADD_MB ))MiB =="
   truncate -s +"$(( P2_DELTA + BOOT_ADD_MB ))M" "$IMG"
 
-  echo "== 刷新 loop 大小 =="
+  echo "== Refreshing loop size =="
   LOOP="$(sudo losetup --find --show -P "$IMG")"
   settle
-  echo "loop 已刷新: $LOOP"
+  echo "loop refreshed: $LOOP"
 
-  echo "== 重建 p1: ${P1_TARGET_MB}MiB FAT32 (${P1_START}s - ${NEW_P1_END}s) =="
+  echo "== Rebuilding p1: ${P1_TARGET_MB}MiB FAT32 (${P1_START}s - ${NEW_P1_END}s) =="
   sudo parted -s "$LOOP" unit s "mkpart primary fat32 ${P1_START}s ${NEW_P1_END}s"
-  # 分区类型 0x0b 与原厂一致 (parted 默认给 0x0c)
+  # Partition type 0x0b, same as stock (parted defaults to 0x0c)
   sudo sfdisk --change-id "$LOOP" 1 b 2>/dev/null || true
   sudo partprobe "$LOOP" || true
   settle
   sudo mkfs.vfat -F 32 -n "$ORIG_P1_LABEL" "${LOOP}p1"
-  echo "== 恢复 p1 内容 =="
+  echo "== Restoring p1 contents =="
   sudo mount "${LOOP}p1" "$P1_NEW_MNT"
   sudo rsync -rltD --no-owner --no-group --no-perms --omit-dir-times \
     $RSYNC_PROGRESS "$TMP_DIR/bootfs"/ "$P1_NEW_MNT"/
   sync
   sudo umount "$P1_NEW_MNT"
 
-  echo "== 重建 p2: ${P2_TARGET_MB}MiB (${NEW_P2_START}s 起) =="
+  echo "== Rebuilding p2: ${P2_TARGET_MB}MiB (starting at ${NEW_P2_START}s) =="
   NEW_P2_END=$(( NEW_P2_START + P2_TARGET_MB * 1024 * 1024 / SECTOR_SIZE - 1 ))
   sudo parted -s "$LOOP" unit s "mkpart primary ${NEW_P2_START}s ${NEW_P2_END}s"
   sudo partprobe "$LOOP" || true
   settle
 else
-  # ======= 第三步B：p1 已达标，仅原地扩 p2 =======
-  echo "p1 已达到 ${P1_TARGET_MB}MiB，跳过 boot 扩容"
+  # ======= Step 3B: p1 already at target, only grow p2 in place =======
+  echo "p1 already at ${P1_TARGET_MB}MiB, skipping boot resize"
 
-  echo "== 扩大镜像 +${P2_DELTA}MiB (仅 p2; p3 保持不变) =="
+  echo "== Enlarging image +${P2_DELTA}MiB (p2 only; p3 unchanged) =="
   truncate -s +"${P2_DELTA}"M "$IMG"
 
-  echo "== 刷新 loop 大小 =="
+  echo "== Refreshing loop size =="
   sudo losetup -d "$LOOP"
   LOOP="$(sudo losetup --find --show -P "$IMG")"
   settle
-  echo "loop 已刷新: $LOOP"
+  echo "loop refreshed: $LOOP"
 
   ADD_SECTORS=$(( P2_DELTA * 1024 * 1024 / SECTOR_SIZE ))
-  # 重新读取 p2 End（以防 parted/内核刷新导致边界变化）
+  # Re-read p2 End (in case parted/kernel refresh shifted the boundary)
   CUR_END="$(sudo parted -sm "$LOOP" unit s print | awk -F: '$1=="2"{gsub(/s/,"",$3); print $3}')"
-  [[ -n "${CUR_END:-}" ]] || { echo "刷新后未能读取到分区2信息，退出。"; exit 1; }
+  [[ -n "${CUR_END:-}" ]] || { echo "Could not read partition 2 info after refresh, exiting."; exit 1; }
   NEW_END=$(( CUR_END + ADD_SECTORS ))
-  echo "将 p2 结束扇区扩到: $NEW_END"
+  echo "Extending p2 end sector to: $NEW_END"
 
-  echo "== 扩展 p2 到指定扇区（非100%） =="
+  echo "== Extending p2 to the given sector (not 100%) =="
   if [ "$P2_DELTA" -gt 0 ]; then
     sudo parted -s "$LOOP" unit s "resizepart 2 ${NEW_END}s"
   else
-    echo "p2 已达到目标容量，跳过"
+    echo "p2 already at target size, skipping"
   fi
   sudo partprobe "$LOOP" || true
   settle
 fi
 
-echo "== 扩展 p2 内文件系统（自动检测 ext4 / f2fs） =="
+echo "== Growing filesystem inside p2 (auto-detect ext4 / f2fs) =="
 P2_DEV="${LOOP}p2"
 P2_FS="$(blkid -s TYPE -o value "$P2_DEV" || true)"
 case "$P2_FS" in
@@ -301,45 +301,45 @@ case "$P2_FS" in
     sudo resize.f2fs "$P2_DEV"
     ;;
   btrfs)
-    # 使用工作目录下的固定挂载点，确保干净
+    # Use a fixed mount point under the work directory so it is clean
     P2_MNT="${WORK_BASE}/btrfs_resize"
     sudo mkdir -p "$P2_MNT"
-    # 确保卸载任何现有挂载
+    # Make sure any existing mounts are unmounted
     sudo umount -l "$P2_MNT" 2>/dev/null || true
     sudo umount -l "$P2_DEV" 2>/dev/null || true
-    # 清除 btrfs 内核设备缓存（关键！）
-    echo "清除 btrfs 设备缓存..."
+    # Clear the btrfs kernel device cache (critical!)
+    echo "Clearing btrfs device cache..."
     sudo btrfs device scan --forget 2>/dev/null || true
-    # 挂载并扩容
+    # Mount and resize
     sudo mount -t btrfs "$P2_DEV" "$P2_MNT"
     sudo btrfs filesystem resize max "$P2_MNT"
     sudo umount "$P2_MNT"
     sudo rmdir "$P2_MNT" 2>/dev/null || true
     ;;
   *)
-    echo "警告：未知/不支持的 p2 文件系统类型：$P2_FS"
-    echo "请手动扩展 p2 文件系统后再继续。"
+    echo "Warning: unknown/unsupported p2 filesystem type: $P2_FS"
+    echo "Please grow the p2 filesystem manually before continuing."
     ;;
 esac
 
-# ======= 第四步：重建 p3（p2 尾后到盘尾） =======
-echo "== 计算新 p3 起始扇区（p2 End + 1） =="
+# ======= Step 4: Rebuild p3 (from after p2 to end of disk) =======
+echo "== Computing new p3 start sector (p2 End + 1) =="
 P2_END_NOW="$(sudo parted -sm "$LOOP" unit s print | awk -F: '$1=="2"{gsub(/s/,"",$3); print $3}')"
-[[ -n "${P2_END_NOW:-}" ]] || { echo "未能读取最新 p2 End，退出。"; exit 1; }
+[[ -n "${P2_END_NOW:-}" ]] || { echo "Could not read latest p2 End, exiting."; exit 1; }
 P3_START=$(( P2_END_NOW + 1 ))
 echo "p2 End: $P2_END_NOW"
 echo "p3 Start: $P3_START"
 
-echo "== 在尾部重建 p3 =="
+echo "== Rebuilding p3 at the end =="
 sudo parted -s "$LOOP" unit s "mkpart primary ${P3_START}s 100%"
-# 分区类型设为 0x07 (exFAT/NTFS): parted 默认给 83(Linux), Windows 会当隐藏分区不显示
+# Set partition type to 0x07 (exFAT/NTFS): parted defaults to 83 (Linux), which Windows treats as hidden and does not show
 sudo sfdisk --change-id "$LOOP" 3 7 2>/dev/null || true
 sudo partprobe "$LOOP" || true
 settle
 
-echo "== 格式化新的 p3 =="
+echo "== Formatting new p3 =="
 P3_DEV="${LOOP}p3"
-echo "使用文件系统: $ORIG_P3_FS, 卷标: $ORIG_P3_LABEL"
+echo "Using filesystem: $ORIG_P3_FS, label: $ORIG_P3_LABEL"
 case "$ORIG_P3_FS" in
   vfat|fat32|fat16)
     sudo mkfs.vfat -F 32 -n "$ORIG_P3_LABEL" "$P3_DEV"
@@ -351,16 +351,16 @@ case "$ORIG_P3_FS" in
     sudo mkfs.exfat -n "$ORIG_P3_LABEL" "$P3_DEV"
     ;;
   *)
-    echo "警告：未知文件系统类型 $ORIG_P3_FS，使用 exfat 作为默认"
+    echo "Warning: unknown filesystem type $ORIG_P3_FS, defaulting to exfat"
     sudo mkfs.exfat -n "$ORIG_P3_LABEL" "$P3_DEV"
     ;;
 esac
 
-# ======= 第五步：恢复数据（镜像一致） =======
+# ======= Step 5: Restore data (exact mirror) =======
 if (( HAD_P3 )); then
-  echo "== 恢复数据（镜像一致）：$TMP_DIR/p3data -> 新 p3 =="
+  echo "== Restoring data (exact mirror): $TMP_DIR/p3data -> new p3 =="
   sudo mount "$P3_DEV" "$P3_NEW_MNT"
-  # FAT32/exFAT 不支持 Unix 权限，使用 --no-perms --no-owner --no-group
+  # FAT32/exFAT do not support Unix permissions, use --no-perms --no-owner --no-group
   case "$ORIG_P3_FS" in
     vfat|fat32|fat16|exfat)
       sudo rsync -rltD --no-perms --no-owner --no-group --delete $RSYNC_PROGRESS "$TMP_DIR/p3data"/ "$P3_NEW_MNT"/
@@ -371,21 +371,21 @@ if (( HAD_P3 )); then
   esac
   sync
   sudo umount "$P3_NEW_MNT"
-  echo "恢复完成。"
+  echo "Restore complete."
 else
-  echo "原镜像没有 p3，跳过恢复。"
+  echo "Original image has no p3, skipping restore."
 fi
 
-# ======= 第六步：可选检查输出 =======
-echo "== 最终分区布局（MiB） =="
+# ======= Step 6: Optional check output =======
+echo "== Final partition layout (MiB) =="
 sudo parted "$LOOP" unit MiB print || true
 
-# ======= 第七步：删除 tmp 并解绑 loop =======
-echo "== 删除备份目录 $TMP_DIR =="
+# ======= Step 7: Delete tmp and detach loop =======
+echo "== Deleting backup directory $TMP_DIR =="
 sudo rm -rf "$TMP_DIR"
 
-echo "== 解绑 loop 设备 =="
+echo "== Detaching loop device =="
 sudo losetup -d "$LOOP" || true
 LOOP=""
 
-echo "✅ 完成：【备份p1+p3 → 删p3 → 右移p2数据并重建p1(${P1_TARGET_MB}M) → 重建p2(${P2_TARGET_MB}M) → 重建p3 → 恢复 → 清理tmp → 解绑loop】"
+echo "✅ Done: [back up p1+p3 → delete p3 → shift p2 data right and rebuild p1 (${P1_TARGET_MB}M) → rebuild p2 (${P2_TARGET_MB}M) → rebuild p3 → restore → clean tmp → detach loop]"
