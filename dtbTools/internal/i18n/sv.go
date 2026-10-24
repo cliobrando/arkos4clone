@@ -43,6 +43,7 @@ var Swedish = Language{
 		SelectKernel:           "Välj kärna:",
 		Kernel44:               "1. Kärna 4.4 (rekommenderas)",
 		Kernel510:              "2. Kärna 5.10 (experimentell: ny Mali GPU-drivrutin, stöd för Vulkan)",
+		Kernel61:               "3. Kärna 6.1 (nyaste: WiFi via mainline-rk915-modulen, aktivt utvecklad)",
 		SelectBatteryVersion:   "Välj batteridrivrutinsversion:",
 		BatteryVersionOriginal: "1. arkos originaldrivrutin (denna drivrutin måste användas tillsammans med batteryplus; annars kommer batterinivån att visas onormalt under laddning).",
 		BatteryVersionFix:      "2. arkos4clone batteridrivrutin (kan korrekt visa batterinivån både under laddning och urladdning, och med en åldringsanpassningsfunktion)",

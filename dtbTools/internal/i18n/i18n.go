@@ -67,6 +67,7 @@ type Menu3Strings struct {
 	SelectKernel           string
 	Kernel44               string
 	Kernel510              string
+	Kernel61               string
 	SelectBatteryVersion   string
 	BatteryVersionOriginal string
 	BatteryVersionFix      string

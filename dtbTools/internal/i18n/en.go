@@ -43,6 +43,7 @@ var English = Language{
 		SelectKernel:           "Select kernel:",
 		Kernel44:               "1. 4.4 kernel (recommended)",
 		Kernel510:              "2. 5.10 kernel (experimental: new Mali GPU driver, Vulkan support)",
+		Kernel61:               "3. 6.1 kernel (newest: WiFi on the mainline rk915 module, actively developed)",
 		SelectBatteryVersion:   "Select battery driver version:",
 		BatteryVersionOriginal: "1. arkos original driver (this driver must be used together with batteryplus; otherwise, the battery level will display abnormally during charging).",
 		BatteryVersionFix:      "2. arkos4clone battery driver (capable of correctly displaying battery level during both charging and discharging, and featuring an aging‑adaptive function)",

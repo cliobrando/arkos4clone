@@ -43,6 +43,7 @@ var French = Language{
 		SelectKernel:           "Sélectionnez le noyau:",
 		Kernel44:               "1. Noyau 4.4 (recommandé)",
 		Kernel510:              "2. Noyau 5.10 (expérimental : nouveau pilote GPU Mali, prise en charge de Vulkan)",
+		Kernel61:               "3. Noyau 6.1 (le plus récent : WiFi via le module rk915 mainline, développement actif)",
 		SelectBatteryVersion:   "Sélectionnez la version du pilote de batterie:",
 		BatteryVersionOriginal: "1. pilote original arkos (ce pilote doit être utilisé avec batteryplus; sinon, le niveau de batterie s'affichera anormalement pendant la charge).",
 		BatteryVersionFix:      "2. pilote de batterie arkos4clone (capable d'afficher correctement le niveau de batterie pendant la charge et la décharge, et doté d'une fonction d'adaptation au vieillissement)",

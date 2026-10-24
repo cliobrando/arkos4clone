@@ -132,10 +132,11 @@ var ddrFreqOptions = []FreqOption{
 
 // The kernels the OS ships: 4.4 in consoles/kernel/<battery version>/,
 // 5.10 in consoles/kernel/5.10/, with its DTBs and overlay in a 5.10 folder
-// next to the 4.4 files.
+// next to the 4.4 files, and 6.1 in consoles/kernel/6.1/ and a 6.1 folder.
 const (
 	Kernel44  = "4.4"
 	Kernel510 = "5.10"
+	Kernel61  = "6.1"
 )
 
 // GPU and DDR options of the 5.10 kernel are its OPPs: the kernel removes
@@ -150,8 +151,8 @@ var ddrFreqOptions510 = []FreqOption{
 }
 
 // Kernel command line option that selects the RK817 battery gauge of the
-// 5.10 kernel. The standard Rockchip gauge is its default, so it needs no
-// option.
+// 5.10 and 6.1 kernels. The standard Rockchip gauge is their default, so it
+// needs no option.
 const gaugeBootArg = "rk817_gauge"
 
 // SelectKernel asks the user which kernel to boot.
@@ -161,6 +162,7 @@ func SelectKernel(lang *i18n.Language) (string, error) {
 	ui.BoxHeader(lang.Menu3.SelectKernel)
 	ui.Println(lang.Menu3.Kernel44)
 	ui.Println(lang.Menu3.Kernel510)
+	ui.Println(lang.Menu3.Kernel61)
 
 	for {
 		choice, err := ui.ReadIntChoice(lang, lang.Common.SelectNumber)
@@ -172,6 +174,8 @@ func SelectKernel(lang *i18n.Language) (string, error) {
 			return Kernel44, nil
 		case 2:
 			return Kernel510, nil
+		case 3:
+			return Kernel61, nil
 		default:
 			ui.Println(ui.ColorWrap(lang.Common.InvalidSelection, ui.StyleRed))
 		}
@@ -284,7 +288,10 @@ func SelectOverclocking(lang *i18n.Language, kernel string) (*OverclockConfig, e
 
 	gpuOptions, gpuExtreme := gpuFreqOptions, 650
 	ddrOptions, ddrExtreme := ddrFreqOptions, 1040
-	if kernel == Kernel510 {
+	if kernel == Kernel510 || kernel == Kernel61 {
+		// The 5.10 and 6.1 kernels remove OPPs above max_gpufreq /
+		// max_ddrfreq, and their tables end at 600 MHz GPU and 1032 MHz
+		// DDR, so offer only their real OPP values.
 		gpuOptions, gpuExtreme = gpuFreqOptions510, 600
 		ddrOptions, ddrExtreme = ddrFreqOptions510, 1032
 	}
@@ -366,7 +373,8 @@ func SelectVoltage(lang *i18n.Language) (bool, error) {
 	return true, nil
 }
 
-// ApplyBatteryVersionToBootIni selects the battery gauge of the 5.10 kernel
+// ApplyBatteryVersionToBootIni selects the battery gauge of the 5.10 and
+// 6.1 kernels
 // on the kernel command line: "arkos4clone_fix" adds rk817_gauge=arkos4clone,
 // anything else removes the option so the kernel uses its default (Rockchip)
 // gauge. The option goes before the frequency options, which
@@ -420,8 +428,11 @@ func ApplyOverclockingToBootIni(baseDir string, oc *OverclockConfig, kernel stri
 
 	if oc.Voltage {
 		voltageOverlay := "consoles/dtbo/rk3326-oc-voltage.dtbo"
-		if kernel == Kernel510 {
+		switch kernel {
+		case Kernel510:
 			voltageOverlay = "consoles/dtbo/5.10/rk3326-oc-voltage.dtbo"
+		case Kernel61:
+			voltageOverlay = "consoles/dtbo/6.1/rk3326-oc-voltage.dtbo"
 		}
 		content = strings.Replace(content,
 			`setenv dtb_loadaddr "0x01f00000"`,
@@ -446,25 +457,32 @@ func ApplyOverclockingToBootIni(baseDir string, oc *OverclockConfig, kernel stri
 }
 
 // copyConsoleFiles copies a console folder to the boot partition. The
-// folder holds the 4.4 DTB, with the 5.10 DTB of the same name in its 5.10
-// folder: for the 5.10 kernel that one is copied instead.
+// folder holds the 4.4 DTB, with the 5.10 / 6.1 DTB of the same name in
+// their subfolder: for one of those kernels that one is copied instead.
 func copyConsoleFiles(srcPath, baseDir, kernel string) error {
 	entries, err := os.ReadDir(srcPath)
 	if err != nil {
 		return err
 	}
+	kernelSub := ""
+	switch kernel {
+	case Kernel510:
+		kernelSub = Kernel510
+	case Kernel61:
+		kernelSub = Kernel61
+	}
 	for _, e := range entries {
 		src := filepath.Join(srcPath, e.Name())
 		dst := filepath.Join(baseDir, e.Name())
 		switch {
-		case e.IsDir() && e.Name() == Kernel510:
+		case e.IsDir() && (e.Name() == Kernel510 || e.Name() == Kernel61):
 			continue
 		case e.IsDir():
 			err = CopyDirectory(src, dst)
-		case kernel == Kernel510 && strings.HasSuffix(e.Name(), ".dtb"):
-			src = filepath.Join(srcPath, Kernel510, e.Name())
+		case kernelSub != "" && strings.HasSuffix(e.Name(), ".dtb"):
+			src = filepath.Join(srcPath, kernelSub, e.Name())
 			if _, statErr := os.Stat(src); statErr != nil {
-				return fmt.Errorf("5.10 DTB not found: %s", src)
+				return fmt.Errorf("%s DTB not found: %s", kernelSub, src)
 			}
 			err = CopyFile(src, dst)
 		default:
@@ -504,11 +522,14 @@ func CopySelectedConsole(lang *i18n.Language, selected *ui.ConsoleOption, baseDi
 	if err != nil {
 		return fmt.Errorf("failed to select battery version: %v", err)
 	}
-	// The 4.4 kernel has one Image per battery driver; the 5.10 kernel has
-	// both drivers and picks one on the command line.
+	// The 4.4 kernel has one Image per battery driver; the 5.10 and 6.1
+	// kernels have both drivers and pick one on the command line.
 	imageDir := batteryVersion
-	if kernel == Kernel510 {
+	switch kernel {
+	case Kernel510:
 		imageDir = Kernel510
+	case Kernel61:
+		imageDir = Kernel61
 	}
 	kernelSrc := filepath.Join(baseDir, "consoles", "kernel", imageDir, "Image")
 	if _, err := os.Stat(kernelSrc); err != nil {
@@ -518,7 +539,7 @@ func CopySelectedConsole(lang *i18n.Language, selected *ui.ConsoleOption, baseDi
 	if err := CopyFile(kernelSrc, filepath.Join(baseDir, "Image")); err != nil {
 		return fmt.Errorf("failed to copy kernel Image: %v", err)
 	}
-	if kernel == Kernel510 {
+	if kernel == Kernel510 || kernel == Kernel61 {
 		if err := ApplyBatteryVersionToBootIni(baseDir, batteryVersion); err != nil {
 			return fmt.Errorf("failed to apply battery version: %v", err)
 		}

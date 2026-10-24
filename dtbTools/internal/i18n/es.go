@@ -43,6 +43,7 @@ var Spanish = Language{
 		SelectKernel:           "Seleccione el kernel:",
 		Kernel44:               "1. Kernel 4.4 (recomendado)",
 		Kernel510:              "2. Kernel 5.10 (experimental: nuevo controlador de GPU Mali, compatible con Vulkan)",
+		Kernel61:               "3. Kernel 6.1 (el más nuevo: WiFi mediante el módulo rk915 mainline, en desarrollo activo)",
 		SelectBatteryVersion:   "Seleccione la versión del controlador de batería:",
 		BatteryVersionOriginal: "1. controlador original de arkos (este controlador debe usarse junto con batteryplus; de lo contrario, el nivel de batería se mostrará anormalmente durante la carga).",
 		BatteryVersionFix:      "2. controlador de batería arkos4clone (capaz de mostrar correctamente el nivel de batería tanto durante la carga como durante la descarga, y con una función de adaptación al envejecimiento)",

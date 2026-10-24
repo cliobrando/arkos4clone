@@ -43,6 +43,7 @@ var Vietnamese = Language{
 		SelectKernel:           "Chọn nhân (kernel):",
 		Kernel44:               "1. Nhân 4.4 (khuyên dùng)",
 		Kernel510:              "2. Nhân 5.10 (thử nghiệm: trình điều khiển GPU Mali mới, hỗ trợ Vulkan)",
+		Kernel61:               "3. Nhân 6.1 (mới nhất: WiFi qua module rk915 mainline, đang được phát triển)",
 		SelectBatteryVersion:   "Chọn phiên bản trình điều khiển pin:",
 		BatteryVersionOriginal: "1. trình điều khiển gốc arkos (trình điều khiển này phải được sử dụng cùng với batteryplus; nếu không, mức pin sẽ hiển thị bất thường trong quá trình sạc).",
 		BatteryVersionFix:      "2. trình điều khiển pin arkos4clone (có thể hiển thị chính xác mức pin trong cả quá trình sạc và xả, và có chức năng thích ứng với lão hóa)",

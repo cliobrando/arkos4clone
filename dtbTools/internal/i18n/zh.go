@@ -43,6 +43,7 @@ var Chinese = Language{
 		SelectKernel:           "请选择内核:",
 		Kernel44:               "1. 4.4 内核（推荐）",
 		Kernel510:              "2. 5.10 内核（实验性：新版 Mali GPU 驱动，支持 Vulkan）",
+		Kernel61:               "3. 6.1 内核（最新：WiFi 使用主线 rk915 模块，持续开发中）",
 		SelectBatteryVersion:   "请选择电池驱动版本:",
 		BatteryVersionOriginal: "1. arkos 原始驱动（该驱动需要搭配batteryplus来使用否则会在充电时电量显示异常）",
 		BatteryVersionFix:      "2. arkos4clone 电池驱动（该版本驱动能够在充电和用电时正确显示电池电量，并且具备老化自适应功能）",
