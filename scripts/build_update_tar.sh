@@ -418,7 +418,7 @@ log "=== Step 8: Apply permissions (META) ==="
 apply_meta
 
 log "=== Step 9: Fix modules permissions ==="
-# The 4.4 and 5.10 kernels each have their module directory
+# The 4.4, 5.10 and 6.1 kernels each have their module directory
 fix_modules_perms() {
   local base="/usr/lib/modules/$1"
   [[ -d "$base" ]] || { log "modules dir not found: $base"; return 0; }
@@ -433,6 +433,7 @@ fix_modules_perms() {
 }
 fix_modules_perms 4.4.189
 fix_modules_perms 5.10.252-arkos4clone
+fix_modules_perms 6.1.172-arkos4clone-61fb
 
 # Mesa's Vulkan drivers cannot drive this GPU, but the loader loads each
 # one (lvp pulls in LLVM, ~3.6 s per Vulkan app start); keep only Mali's
