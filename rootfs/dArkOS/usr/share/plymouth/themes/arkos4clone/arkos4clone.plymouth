@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=ArkOS4Clone
+Description=The boot logo on black, at boot, shutdown and reboot
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/arkos4clone
+ScriptFile=/usr/share/plymouth/themes/arkos4clone/arkos4clone.script
