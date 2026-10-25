@@ -1,0 +1,15 @@
+#!/bin/sh
+# boot_cpufreq= on the kernel command line caps the CPU while booting; the
+# kernel leaves raising it to userspace. Once booted, lift the cap to
+# max_cpufreq= (the overclock chosen in dtb_selector), or to the highest
+# OPP the kernel enabled if max_cpufreq= is not set.
+mhz=$(sed -n 's/.*[[:space:]]max_cpufreq=\([0-9]*\).*/\1/p' /proc/cmdline)
+for p in /sys/devices/system/cpu/cpufreq/policy*; do
+  [ -w "$p/scaling_max_freq" ] || continue
+  hw=$(cat "$p/cpuinfo_max_freq")
+  want=$hw
+  if [ -n "$mhz" ] && [ $((mhz * 1000)) -lt "$hw" ]; then
+    want=$((mhz * 1000))
+  fi
+  echo "$want" > "$p/scaling_max_freq"
+done

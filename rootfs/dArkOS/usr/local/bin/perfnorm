@@ -55,4 +55,6 @@ echo simple_ondemand > /sys/devices/platform/${gpu}.gpu/devfreq/${gpu}.gpu/gover
 # schedutil: the scheduler-driven governor; fall back to ondemand on a kernel without it
 echo schedutil > /sys/devices/system/cpu/cpufreq/policy0/scaling_governor 2>/dev/null ||
   echo ondemand > /sys/devices/system/cpu/cpufreq/policy0/scaling_governor
+# tunables reset when the governor changes: see /etc/tmpfiles.d/schedutil.conf
+echo 2000 > /sys/devices/system/cpu/cpufreq/policy0/schedutil/rate_limit_us 2>/dev/null
 echo dmc_ondemand > /sys/devices/platform/dmc/devfreq/dmc/governor

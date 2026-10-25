@@ -1,0 +1,10 @@
+[Unit]
+Description=Lift the boot_cpufreq CPU cap to max_cpufreq
+After=sysinit.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/cpu-max-freq
+
+[Install]
+WantedBy=multi-user.target
