@@ -1,0 +1,13 @@
+[Unit]
+Description=Preload EmulationStation files into page cache
+# Run early, in parallel with the splash phase, so the eMMC reads overlap with
+# the spinner instead of stalling ES's cold start.
+After=local-fs.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/es-preload.sh
+
+[Install]
+WantedBy=multi-user.target

@@ -1,5 +1,12 @@
 #!/bin/bash
 
+# While plymouth owns the screen (boot), this text is never visible and the
+# terminal writes would race the ES framebuffer once ES starts concurrently;
+# skip the painting in that case.
+if [ -e /run/plymouth/pid ]; then
+  exit 0
+fi
+
 center_screen() {
   clear
   local text="$*"
