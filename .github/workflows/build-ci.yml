@@ -197,9 +197,12 @@ jobs:
             p7zip-full
 
       - name: Download & extract source image
+        env:
+          # unauthenticated API calls from shared runners hit the 60/h limit (HTTP 403)
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "=== 获取 dArkOS 最新 Release 信息 ==="
-          RELEASE_JSON=$(curl -fsSL https://api.github.com/repos/christianhaitian/dArkOS/releases/latest)
+          RELEASE_JSON=$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/repos/christianhaitian/dArkOS/releases/latest)
           TAG_NAME=$(echo "$RELEASE_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'])")
           echo "最新 Release tag: $TAG_NAME"
 
