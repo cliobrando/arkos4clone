@@ -11,7 +11,7 @@ export PATH="/usr/sbin:/sbin:$PATH"
 
 # Default values
 ENABLED=1
-ALGORITHM="zstd"
+ALGORITHM="lz4"
 SIZE=1073741824  # 1024M
 
 # Read config if it exists. Older EmulationStation builds wrote it with
@@ -21,11 +21,13 @@ if [ -f "$CONF" ]; then
 fi
 
 # Use the configured algorithm if this kernel has it, else the first one it
-# has from this list (the 4.4 kernel only has lzo).
+# has from this list (the 4.4 kernel only has lzo). lz4 comes first: on the
+# Cortex-A35 it swaps in about 3x faster than zstd, which keeps swap stalls
+# within a frame, at a lower compression ratio.
 pick_algorithm() {
     local have a
     have=" $(tr -d '[]' < /sys/block/zram0/comp_algorithm 2>/dev/null) "
-    for a in "$ALGORITHM" zstd lz4 lzo-rle lzo; do
+    for a in "$ALGORITHM" lz4 zstd lzo-rle lzo; do
         case "$have" in *" $a "*) echo "$a"; return ;; esac
     done
 }
