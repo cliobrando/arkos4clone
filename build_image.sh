@@ -475,6 +475,22 @@ step_mount() {
   fi
 }
 
+step_upgrade_debian() {
+  # 可选: ARKOS_UPGRADE_DEBIAN=1 时，在注入定制内容之前把基础镜像的 Debian 包升级到
+  # 本发行版的最新点版本 (需要 aarch64 binfmt/qemu，见 docker/build-image.sh)
+  # Optional (ARKOS_UPGRADE_DEBIAN=1): upgrade the base image's Debian packages to the
+  # latest point release before arkos4clone's files are injected on top.
+  [[ "${ARKOS_UPGRADE_DEBIAN:-0}" == "1" ]] || return 0
+  log_info "升级 Debian 软件包 (upgrade Debian packages)..."
+  if "$SCRIPT_DIR/scripts/upgrade_rootfs.sh" "${ARKOS_MNT}/root" "${ARKOS_WORK_DIR}/debian-upgrade-report.txt"; then
+    log_ok "Debian 软件包升级完成，报告: ${ARKOS_WORK_DIR}/debian-upgrade-report.txt"
+  else
+    log_error "Debian 软件包升级失败"
+    "$SCRIPT_DIR/scripts/mount_arkos.sh" unmount 2>/dev/null || true
+    exit 1
+  fi
+}
+
 step_inject() {
   log_info "步骤 5/8: 注入定制内容..."
   if "$SCRIPT_DIR/scripts/clone_support.sh"; then
@@ -764,6 +780,7 @@ main() {
   step_mount "$work_image"
   # 步骤 5: 注入定制内容
   echo ""
+  step_upgrade_debian
   step_inject
   # 步骤 6: 卸载镜像
   echo ""

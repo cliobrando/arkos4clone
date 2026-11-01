@@ -25,3 +25,6 @@ rootfs/dArkOS/home/ark/.config/retroarch/cores/mame2016_libretro.so
 rootfs/dArkOS/home/ark/.config/retroarch32/cores/mame2016_libretro.so
 roms/tools/Install.PortMaster.sh
 sdl2-build/
+
+# docker/build-image.sh work directory
+build-work/
