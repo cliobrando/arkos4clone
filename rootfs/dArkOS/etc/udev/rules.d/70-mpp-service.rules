@@ -1,0 +1,4 @@
+# EmulationStation decodes videos on the VPU through Rockchip MPP
+# (librockchip_mpp opens /dev/mpp_service); without this it is root-only
+# and ES falls back to software decoding in VLC.
+KERNEL=="mpp_service", GROUP="video", MODE="0660"

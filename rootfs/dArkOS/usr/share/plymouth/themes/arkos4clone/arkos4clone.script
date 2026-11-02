@@ -10,25 +10,3 @@ if (logo.GetWidth() > w || logo.GetHeight() > h)
 sprite = Sprite(logo);
 sprite.SetX(Window.GetX() + (w - logo.GetWidth()) / 2);
 sprite.SetY(Window.GetY() + (h - logo.GetHeight()) / 2);
-
-# Loading spinner in the black band above the artwork (rows 0..47 of the
-# 720x720 logo): gives motion feedback during the long userspace warm-up
-# instead of a frozen image.
-for (i = 0; i < 24; i++)
-  spinner_frame[i] = Image("spinner-" + i + ".png");
-
-spinner_sprite = Sprite(spinner_frame[0]);
-spinner_sprite.SetX(Window.GetX() + (w - spinner_frame[0].GetWidth()) / 2);
-# vertically centred in that top black band
-spinner_sprite.SetY(Window.GetY() + (48 - spinner_frame[0].GetHeight()) / 2);
-
-spin_step = 0;
-
-fun spinner_refresh ()
-  {
-    # engine refresh runs ~50 Hz: two ticks per frame -> ~0.96 s per turn
-    spinner_sprite.SetImage(spinner_frame[Math.Int(spin_step / 2) % 24]);
-    spin_step++;
-  }
-
-Plymouth.SetRefreshFunction (spinner_refresh);

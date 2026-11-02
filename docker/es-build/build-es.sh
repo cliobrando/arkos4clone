@@ -41,15 +41,15 @@ docker run --rm -u "$(id -u):$(id -g)" \
     for l in libmali.so libGLESv1_CM.so libGLESv2.so libEGL.so; do ln -sf libmali.so.1 /tmp/mali-link/$l; done
     log=/build/build.log
     fail() { echo "build failed, end of $log:" >&2; grep -E "error|Error" "$log" | head -20 >&2; exit 1; }
-    if [ ! -f /build/Makefile ]; then
-      cmake -S /src -B /build -DCMAKE_TOOLCHAIN_FILE=/opt/toolchain-aarch64.cmake \
+    # configure on every run (incremental): extra -D options also apply to
+    # an existing build dir and stay in its cache
+    cmake -S /src -B /build -DCMAKE_TOOLCHAIN_FILE=/opt/toolchain-aarch64.cmake \
         -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_BUILD_TYPE=Release \
         -DGLES=ON -DGL=OFF -DGLSystem="Embedded OpenGL" \
         -DCMAKE_CXX_FLAGS="-include cstdint -I/opt/go2-include" \
         -DCMAKE_CXX_STANDARD_LIBRARIES="-lGLESv1_CM" \
         -DCMAKE_EXE_LINKER_FLAGS="-L/tmp/mali-link -Wl,-rpath-link,/tmp/mali-link" \
         "$@" > "$log" 2>&1 || fail
-    fi
     # the binary is written into the source tree; never ship a stale one
     rm -f /src/emulationstation
     cmake --build /build --parallel "$(nproc)" > "$log" 2>&1 || fail
