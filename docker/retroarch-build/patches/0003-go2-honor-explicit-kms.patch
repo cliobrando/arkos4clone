@@ -1,0 +1,27 @@
+go2 context: stand aside for an explicit video_context_driver = "kms"
+
+Both DRM contexts have the ident "kms", because udev_input.c keys keyboard
+handling on it, so the setting could never select the generic one: the go2
+context is first in the list and answers. An unrotated panel can use direct
+page flips instead of an RGA copy of every frame. The default "" still
+tries go2 first, so rotated consoles are unaffected.
+
+--- a/gfx/drivers_context/drm_go2_ctx.c
++++ b/gfx/drivers_context/drm_go2_ctx.c
+@@ -118,6 +118,16 @@
+    if (!drm)
+       return NULL;
+ 
++   /* Both contexts are called "kms" and this one is tried first, so an
++    * explicit "kms" reaches the generic context only if this one stands
++    * aside. It costs an RGA copy per frame that an unrotated panel does
++    * not need. */
++   if (string_is_equal(config_get_ptr()->arrays.video_context_driver, "kms"))
++   {
++      free(drm);
++      return NULL;
++   }
++
+    drm->display       = go2_display_create();
+ 
+    /* Auto-detect rotation from console_detect */

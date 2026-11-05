@@ -221,6 +221,21 @@ apply_input() {
   done
 }
 
+# R36 Ultra: 720x720 panel, no rotation. The generic KMS context flips the GPU
+# buffer directly and stays locked to the display; the go2 context adds an RGA
+# copy of every frame and is not paced by vsync. Needs the RetroArch build from
+# docker/retroarch-build (patch 0003) to take effect.
+apply_retroarch_display() {
+  [[ "$DEVICE_NAME" == "r36ultra" ]] || return 0
+  msg "apply_retroarch_display: KMS context, ${SCREEN_WIDTH}x${SCREEN_HEIGHT} viewport"
+  for cfg in /home/ark/.config/retroarch/retroarch.cfg /home/ark/.config/retroarch32/retroarch.cfg; do
+    sed -i -e 's/^video_context_driver = ".*"/video_context_driver = "kms"/' \
+           -e "s/^custom_viewport_width = \".*\"/custom_viewport_width = \"$SCREEN_WIDTH\"/" \
+           -e "s/^custom_viewport_height = \".*\"/custom_viewport_height = \"$SCREEN_HEIGHT\"/" \
+           "$cfg" 2>/dev/null || true
+  done
+}
+
 apply_es_setting() {
   msg "apply_es_setting: CONSOLE_FILE=$CONSOLE_FILE"
 
@@ -317,6 +332,8 @@ apply_all_quirks() {
     apply_joy_conf
     # RA OGAGE 快捷键映射
     apply_hotkey_conf
+    # RA 屏幕设置 (在配置文件复制之后)
+    apply_retroarch_display
     # SDL2 旋转
     apply_rotate_file
   else

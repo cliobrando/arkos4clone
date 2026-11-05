@@ -1,0 +1,38 @@
+go2 context: letterbox with context scaling when the picture is wider
+than the panel.
+
+The output rectangle was only fitted horizontally: the width was clamped
+to the panel and the height stayed full, so anything wider than the panel
+was stretched vertically. Every system on a 1:1 panel hits that (4:3 came
+out at 720x720 instead of 720x540). Fit the width and center vertically.
+
+Also include gl_common.h, which declares gl_clear(), as drm_ctx.c does.
+
+--- a/gfx/drivers_context/drm_go2_ctx.c
++++ b/gfx/drivers_context/drm_go2_ctx.c
+@@ -49,6 +49,8 @@
+ #include "../common/egl_common.h"
+ #endif
+ 
++#include "../common/gl_common.h"
++
+ #ifdef HAVE_MENU
+ #include "../../menu/menu_driver.h"
+ #endif
+@@ -393,8 +393,14 @@ static void gfx_ctx_go2_drm_swap_buffers(void *data)
+ 
+    if (out_w != src_w || out_h != src_h)
+    {
+-       out_w = out_h * video_driver_get_aspect_ratio();
+-       out_w = (out_w > drm->native_width) ? drm->native_width : out_w;
++       float aspect = video_driver_get_aspect_ratio();
++       out_w = out_h * aspect;
++       if (out_w > (int)drm->native_width)
++       {
++           out_w = drm->native_width;
++           out_h = out_w / aspect;
++           out_y = (drm->native_height - out_h) / 2;
++       }
+        out_x = (drm->native_width - out_w) / 2;
+        if (out_x < 0)
+            out_x = 0;
