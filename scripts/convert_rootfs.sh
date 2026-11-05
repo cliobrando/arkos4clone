@@ -196,6 +196,9 @@ mount "$P1" "$BOOT_MNT"
 fix_fstab "$BOOT_MNT/fstab.exfat"
 echo "== Adding fsck.ext4 to the initramfs =="
 add_fsck_ext4_to_initrd
+echo "== Slimming the initramfs =="
+python3 -I "$(dirname "$(readlink -f "$0")")/slim_initrd.py" "$BOOT_MNT/uInitrd" ||
+  echo "  slim_initrd failed, keeping the full initramfs"
 umount "$BOOT_MNT"
 
 umount "$NEW_MNT"
