@@ -29,7 +29,7 @@ mkdir -p "$BUILD" "$(dirname "$OUT")"
 docker build -q -t "$IMAGE" "$REPO/docker/es-build" >/dev/null
 
 MPP_MOUNT=()
-[ -d "$MPP_INC" ] && MPP_MOUNT=(-v "$MPP_INC:/mpp-include/rockchip:ro")
+[ -d "$MPP_INC" ] && MPP_MOUNT=(-v "$MPP_INC:/mpp-include/rockchip:ro" -v "$REPO/docker/retroarch-build/rga:/mpp-include/rockchip-rga:ro")
 
 docker run --rm -u "$(id -u):$(id -g)" \
   -v "$SRC:/src" -v "$BUILD:/build" -v "$MALI:/mali:ro" -v "$GO2:/opt/go2-include/go2:ro" "${MPP_MOUNT[@]}" \
@@ -40,15 +40,18 @@ docker run --rm -u "$(id -u):$(id -g)" \
     ln -sf /mali/libmali-bifrost-g31-g29p1.so /tmp/mali-link/libmali.so.1
     for l in libmali.so libGLESv1_CM.so libGLESv2.so libEGL.so; do ln -sf libmali.so.1 /tmp/mali-link/$l; done
     log=/build/build.log
+    TUNE="-mcpu=cortex-a35 -flto=auto -ffunction-sections -fdata-sections -fno-semantic-interposition"
     fail() { echo "build failed, end of $log:" >&2; grep -E "error|Error" "$log" | head -20 >&2; exit 1; }
     # configure on every run (incremental): extra -D options also apply to
     # an existing build dir and stay in its cache
     cmake -S /src -B /build -DCMAKE_TOOLCHAIN_FILE=/opt/toolchain-aarch64.cmake \
         -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_BUILD_TYPE=Release \
         -DGLES=ON -DGL=OFF -DGLSystem="Embedded OpenGL" \
-        -DCMAKE_CXX_FLAGS="-include cstdint -I/opt/go2-include" \
+        -DCMAKE_AR=/usr/bin/aarch64-linux-gnu-gcc-ar -DCMAKE_RANLIB=/usr/bin/aarch64-linux-gnu-gcc-ranlib \
+        -DCMAKE_C_FLAGS="$TUNE" \
+        -DCMAKE_CXX_FLAGS="-include cstdint -I/opt/go2-include $TUNE" \
         -DCMAKE_CXX_STANDARD_LIBRARIES="-lGLESv1_CM" \
-        -DCMAKE_EXE_LINKER_FLAGS="-L/tmp/mali-link -Wl,-rpath-link,/tmp/mali-link" \
+        -DCMAKE_EXE_LINKER_FLAGS="-L/tmp/mali-link -Wl,-rpath-link,/tmp/mali-link -Wl,-O1,--as-needed,--gc-sections,--hash-style=gnu" \
         "$@" > "$log" 2>&1 || fail
     # the binary is written into the source tree; never ship a stale one
     rm -f /src/emulationstation
