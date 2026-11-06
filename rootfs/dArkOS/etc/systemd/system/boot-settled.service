@@ -1,0 +1,12 @@
+[Unit]
+Description=Hold boot-time writes until ES is up
+After=firstboot.service
+Before=NetworkManager.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/boot-settled.sh
+
+[Install]
+WantedBy=multi-user.target

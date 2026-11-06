@@ -59,6 +59,8 @@ cp_if_exists() {
   [[ -e "$src" ]] || { warn "Source not found: $src"; return 1; }
   
   if [[ "$isfile" == "yes" ]]; then
+    # 内容相同则不写: 这张 SD 卡一次小写入可能阻塞读取数秒
+    cmp -s "$src" "$dst" && return 0
     mkdir -p "$(dirname "$dst")"
     # 先删除目标文件（如果存在），确保能正确覆盖
     rm -f "$dst" 2>/dev/null || true
@@ -236,6 +238,17 @@ apply_retroarch_display() {
   done
 }
 
+# R36 Ultra (6.1 kernel): the card can stall reads for seconds around a small
+# write, so drop boot-time writes that have no use here. The crng is ready
+# before userspace on 6.1; older kernels keep the random seed.
+apply_boot_write_tuning() {
+  [[ "$DEVICE_NAME" == "r36ultra" ]] || return 0
+  msg "apply_boot_write_tuning"
+  sudo ln -sf /dev/null /etc/systemd/system/systemd-random-seed.service
+  sudo ln -sf /dev/null /etc/systemd/system/systemd-pstore.service
+  sudo ln -sf /run/NetworkManager/resolv.conf /etc/resolv.conf
+}
+
 apply_es_setting() {
   msg "apply_es_setting: CONSOLE_FILE=$CONSOLE_FILE"
 
@@ -334,6 +347,7 @@ apply_all_quirks() {
     apply_hotkey_conf
     # RA 屏幕设置 (在配置文件复制之后)
     apply_retroarch_display
+    apply_boot_write_tuning
     # SDL2 旋转
     apply_rotate_file
   else

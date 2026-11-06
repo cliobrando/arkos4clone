@@ -122,7 +122,7 @@ fix_fstab() {
     awk '$1 !~ /^#/ && $2 != "/" && $3 == "btrfs"' "$f"
     exit 1
   fi
-  awk 'BEGIN {OFS="\t"} $1 !~ /^#/ && $2 == "/" {$3 = "ext4"; $4 = "defaults,noatime"; $5 = ($5 == "" ? 0 : $5); $6 = 1} {print}' \
+  awk 'BEGIN {OFS="\t"} $1 !~ /^#/ && $2 == "/" {$3 = "ext4"; $4 = "defaults,noatime,commit=30"; $5 = ($5 == "" ? 0 : $5); $6 = 1} {print}' \
     "$f" > "$f.new"
   cat "$f.new" > "$f"
   rm -f "$f.new"
