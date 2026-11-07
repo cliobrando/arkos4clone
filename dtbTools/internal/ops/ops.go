@@ -133,10 +133,14 @@ var ddrFreqOptions = []FreqOption{
 // The kernels the OS ships: 4.4 in consoles/kernel/<battery version>/,
 // 5.10 in consoles/kernel/5.10/, with its DTBs and overlay in a 5.10 folder
 // next to the 4.4 files, and 6.1 in consoles/kernel/6.1/ and a 6.1 folder.
+// 7.1 is in consoles/kernel/7.1/, and only for consoles with a 7.1 folder,
+// which holds their DTB and boot.ini: its command line differs, and it has
+// one battery driver and no overclock options.
 const (
 	Kernel44  = "4.4"
 	Kernel510 = "5.10"
 	Kernel61  = "6.1"
+	Kernel71  = "7.1"
 )
 
 // GPU and DDR options of the 5.10 kernel are its OPPs: the kernel removes
@@ -156,13 +160,16 @@ var ddrFreqOptions510 = []FreqOption{
 const gaugeBootArg = "rk817_gauge"
 
 // SelectKernel asks the user which kernel to boot.
-func SelectKernel(lang *i18n.Language) (string, error) {
+func SelectKernel(lang *i18n.Language, has71 bool) (string, error) {
 	ui.ClearScreen()
 	ui.Println("")
 	ui.BoxHeader(lang.Menu3.SelectKernel)
 	ui.Println(lang.Menu3.Kernel44)
 	ui.Println(lang.Menu3.Kernel510)
 	ui.Println(lang.Menu3.Kernel61)
+	if has71 {
+		ui.Println(lang.Menu3.Kernel71)
+	}
 
 	for {
 		choice, err := ui.ReadIntChoice(lang, lang.Common.SelectNumber)
@@ -176,6 +183,11 @@ func SelectKernel(lang *i18n.Language) (string, error) {
 			return Kernel510, nil
 		case 3:
 			return Kernel61, nil
+		case 4:
+			if has71 {
+				return Kernel71, nil
+			}
+			ui.Println(ui.ColorWrap(lang.Common.InvalidSelection, ui.StyleRed))
 		default:
 			ui.Println(ui.ColorWrap(lang.Common.InvalidSelection, ui.StyleRed))
 		}
@@ -470,15 +482,19 @@ func copyConsoleFiles(srcPath, baseDir, kernel string) error {
 		kernelSub = Kernel510
 	case Kernel61:
 		kernelSub = Kernel61
+	case Kernel71:
+		kernelSub = Kernel71
 	}
 	for _, e := range entries {
 		src := filepath.Join(srcPath, e.Name())
 		dst := filepath.Join(baseDir, e.Name())
 		switch {
-		case e.IsDir() && (e.Name() == Kernel510 || e.Name() == Kernel61):
+		case e.IsDir() && (e.Name() == Kernel510 || e.Name() == Kernel61 || e.Name() == Kernel71):
 			continue
 		case e.IsDir():
 			err = CopyDirectory(src, dst)
+		case kernel == Kernel71 && e.Name() == "boot.ini":
+			err = CopyFile(filepath.Join(srcPath, kernelSub, e.Name()), dst)
 		case kernelSub != "" && strings.HasSuffix(e.Name(), ".dtb"):
 			src = filepath.Join(srcPath, kernelSub, e.Name())
 			if _, statErr := os.Stat(src); statErr != nil {
@@ -509,7 +525,8 @@ func CopySelectedConsole(lang *i18n.Language, selected *ui.ConsoleOption, baseDi
 		return fmt.Errorf("source directory not found: %s", srcPath)
 	}
 
-	kernel, err := SelectKernel(lang)
+	_, statErr := os.Stat(filepath.Join(srcPath, Kernel71))
+	kernel, err := SelectKernel(lang, statErr == nil)
 	if err != nil {
 		return fmt.Errorf("failed to select kernel: %v", err)
 	}
@@ -518,9 +535,12 @@ func CopySelectedConsole(lang *i18n.Language, selected *ui.ConsoleOption, baseDi
 		return fmt.Errorf("failed to copy console: %v", err)
 	}
 
-	batteryVersion, err := SelectBatteryVersion(lang)
-	if err != nil {
-		return fmt.Errorf("failed to select battery version: %v", err)
+	batteryVersion := ""
+	if kernel != Kernel71 {
+		batteryVersion, err = SelectBatteryVersion(lang)
+		if err != nil {
+			return fmt.Errorf("failed to select battery version: %v", err)
+		}
 	}
 	// The 4.4 kernel has one Image per battery driver; the 5.10 and 6.1
 	// kernels have both drivers and pick one on the command line.
@@ -530,6 +550,8 @@ func CopySelectedConsole(lang *i18n.Language, selected *ui.ConsoleOption, baseDi
 		imageDir = Kernel510
 	case Kernel61:
 		imageDir = Kernel61
+	case Kernel71:
+		imageDir = Kernel71
 	}
 	kernelSrc := filepath.Join(baseDir, "consoles", "kernel", imageDir, "Image")
 	if _, err := os.Stat(kernelSrc); err != nil {
@@ -545,9 +567,12 @@ func CopySelectedConsole(lang *i18n.Language, selected *ui.ConsoleOption, baseDi
 		}
 	}
 
-	ocCfg, err := SelectOverclocking(lang, kernel)
-	if err != nil {
-		return fmt.Errorf("failed to select overclocking: %v", err)
+	var ocCfg *OverclockConfig
+	if kernel != Kernel71 {
+		ocCfg, err = SelectOverclocking(lang, kernel)
+		if err != nil {
+			return fmt.Errorf("failed to select overclocking: %v", err)
+		}
 	}
 	if ocCfg != nil {
 		ui.Println(ui.ColorWrap(lang.Overclock.ApplyOverclock, ui.StyleCyan))

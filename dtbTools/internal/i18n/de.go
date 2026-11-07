@@ -44,6 +44,7 @@ var German = Language{
 		Kernel44:               "1. Kernel 4.4 (empfohlen)",
 		Kernel510:              "2. Kernel 5.10 (experimentell: neuer Mali-GPU-Treiber, Vulkan-Unterstützung)",
 		Kernel61:               "3. Kernel 6.1 (neueste: WiFi über das Mainline-rk915-Modul, aktiv in Entwicklung)",
+		Kernel71:               "4. Kernel 7.1 (nur R36 Ultra: neuester, schnellere GPU, Hardware-Video)",
 		SelectBatteryVersion:   "Wählen Sie die Batterie-Treiberversion:",
 		BatteryVersionOriginal: "1. arkos Original-Treiber (dieser Treiber muss zusammen mit batteryplus verwendet werden; andernfalls wird der Batteriestand während des Ladens abnormal angezeigt).",
 		BatteryVersionFix:      "2. arkos4clone Batterie-Treiber (kann den Batteriestand sowohl beim Laden als auch beim Entladen korrekt anzeigen und verfügt über eine alterungsadaptive Funktion)",

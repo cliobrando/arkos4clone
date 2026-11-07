@@ -44,6 +44,7 @@ var Polish = Language{
 		Kernel44:               "1. Jądro 4.4 (zalecane)",
 		Kernel510:              "2. Jądro 5.10 (eksperymentalne: nowy sterownik GPU Mali, obsługa Vulkan)",
 		Kernel61:               "3. Jądro 6.1 (najnowsze: WiFi przez moduł rk915 mainline, aktywnie rozwijane)",
+		Kernel71:               "4. Jądro 7.1 (tylko R36 Ultra: najnowsze, szybsze GPU, sprzętowe wideo)",
 		SelectBatteryVersion:   "Wybierz wersję sterownika baterii:",
 		BatteryVersionOriginal: "1. oryginalny sterownik arkos (ten sterownik musi być używany razem z batteryplus; w przeciwnym razie poziom baterii będzie wyświetlany nieprawidłowo podczas ładowania).",
 		BatteryVersionFix:      "2. sterownik baterii arkos4clone (zdolny do prawidłowego wyświetlania poziomu baterii zarówno podczas ładowania, jak i rozładowania, i z funkcją adaptacji do starzenia)",

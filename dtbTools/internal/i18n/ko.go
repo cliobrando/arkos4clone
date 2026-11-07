@@ -44,6 +44,7 @@ var Korean = Language{
 		Kernel44:               "1. 4.4 커널 (권장)",
 		Kernel510:              "2. 5.10 커널 (실험적: 새 Mali GPU 드라이버, Vulkan 지원)",
 		Kernel61:               "3. 6.1 커널 (최신: WiFi는 메인라인 rk915 모듈, 활발히 개발 중)",
+		Kernel71:               "4. 7.1 커널 (R36 Ultra 전용: 최신, 더 빠른 GPU, 하드웨어 비디오)",
 		SelectBatteryVersion:   "배터리 드라이버 버전을 선택하세요:",
 		BatteryVersionOriginal: "1. arkos 오리지널 드라이버 (이 드라이버는 batteryplus와 함께 사용해야 하며, 그렇지 않으면 충전 시 배터리 잔량이 비정상적으로 표시됩니다.)",
 		BatteryVersionFix:      "2. arkos4clone 배터리 드라이버 (충전 및 사용 중에 배터리 잔량을 정확하게 표시할 수 있으며, 노화 적응 기능을 갖추고 있습니다.)",

@@ -140,6 +140,8 @@ else
     disown
     while true; do
         rm -f /tmp/es-restart /tmp/es-sysrestart /tmp/es-shutdown
+        # 7.1 has the multi-RGA driver, which needs librga 1.10; older kernels keep theirs
+        case "$(uname -r)" in 7.*) export LD_LIBRARY_PATH=/opt/librga-1.10.6/a64:/opt/librga-1.10.6/a32;; esac
         "$esdir/emulationstation" "$@"
         ret=$?
         [ -f /tmp/es-restart ] && continue

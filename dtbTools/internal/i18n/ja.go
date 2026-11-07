@@ -44,6 +44,7 @@ var Japanese = Language{
 		Kernel44:               "1. 4.4 カーネル（推奨）",
 		Kernel510:              "2. 5.10 カーネル（実験的：新しい Mali GPU ドライバ、Vulkan 対応）",
 		Kernel61:               "3. 6.1 カーネル（最新：WiFi は mainline rk915 モジュール、開発中）",
+		Kernel71:               "4. 7.1 カーネル（R36 Ultra 専用：最新、GPU 高速化、ハードウェア動画）",
 		SelectBatteryVersion:   "バッテリドライババージョンを選択:",
 		BatteryVersionOriginal: "1. arkosオリジナルドライバ (このドライバはbatteryplusと一緒に使用する必要があります。そうしないと、充電中にバッテリーレベルが異常に表示されます)。",
 		BatteryVersionFix:      "2. arkos4cloneバッテリードライバ (充電と放電の両方でバッテリーレベルを正しく表示でき、エージング適応機能を備えています)",

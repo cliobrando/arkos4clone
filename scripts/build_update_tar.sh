@@ -434,6 +434,7 @@ fix_modules_perms() {
 fix_modules_perms 4.4.189
 fix_modules_perms 5.10.252-arkos4clone
 fix_modules_perms 6.1.172-arkos4clone-61fb
+fix_modules_perms 7.1.2-arkos4clone-71+
 
 # Mesa's Vulkan drivers cannot drive this GPU, but the loader loads each
 # one (lvp pulls in LLVM, ~3.6 s per Vulkan app start); keep only Mali's
