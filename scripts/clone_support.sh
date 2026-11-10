@@ -44,7 +44,8 @@ echo "== 注入前镜像 root 分区剩余空间 =="
 df -h "$MOUNT_DIR/root" || true
 
 # boot 分区 (FAT32) 与 root 分区 (ext4) 的 rsync 参数
-# root 用 -p 配合 --chmod=D0777,F0777 让落盘内容即为 777，--chown 指定属主
+# root: 系统目录 (etc, usr) 归 root, 保留仓库里的权限位但去掉组/其他写权限;
+# 用户目录 (home, opt) 用 --chmod=D0777,F0777 + --chown 指定属主
 # -c 按校验和比对: ArkOS/dArkOS 两棵树的 mtime 相同 (git checkout)，
 # 且 BMP 等文件"同分辨率=同大小"，用 -t 快速比对会漏掉内容不同的覆盖文件
 RSYNC_BOOT_OPTS="-rltcD --no-owner --no-group --no-perms --omit-dir-times"
@@ -68,7 +69,39 @@ sync_boot() {
 
 sync_rootfs() {
   # $1: rootfs/ 子目录, $2: 属主 (如 1002:1002)
-  fatal sudo rsync $RSYNC_ROOT_OPTS --exclude='/home/ark/.config/retroarch*/cores/*.so.xz' --chown="$2" --chmod=D0777,F0777 "rootfs/$1/" "$MOUNT_DIR/root/"
+  # Each top-level folder is synced on its own, so the image's / keeps its
+  # owner and mode. System folders go to root without group/other write:
+  # files owned by or writable for the user there let any program running as
+  # the user change what root runs (systemd units, udev rules, sudo scripts).
+  local d
+  for d in "rootfs/$1"/*/; do
+    d=$(basename "$d")
+    case "$d" in
+      etc|usr)
+        fatal sudo rsync $RSYNC_ROOT_OPTS --chown=0:0 --chmod=go-w "rootfs/$1/$d/" "$MOUNT_DIR/root/$d/" ;;
+      *)
+        fatal sudo rsync $RSYNC_ROOT_OPTS --exclude='ark/.config/retroarch*/cores/*.so.xz' --chown="$2" --chmod=D0777,F0777 "rootfs/$1/$d/" "$MOUNT_DIR/root/$d/" ;;
+    esac
+  done
+  # rsync applies the source folder's owner to home/ itself
+  fatal sudo chown 0:0 "$MOUNT_DIR/root/home"
+  fatal sudo chmod 755 "$MOUNT_DIR/root/home"
+}
+
+fix_system_permissions() {
+  # The base images ship world-writable scripts in /usr/local/bin and
+  # elsewhere, some run as root; leave nothing in / , /etc or /usr that the
+  # user owns or can write
+  safe sudo chown 0:0 "$MOUNT_DIR/root"
+  safe sudo chmod 755 "$MOUNT_DIR/root"
+  safe sudo find "$MOUNT_DIR/root/etc" "$MOUNT_DIR/root/usr" -xdev \( -uid 1000 -o -uid 1001 -o -uid 1002 \) \
+    -exec chown -h 0:0 {} +
+  safe sudo find "$MOUNT_DIR/root/etc" "$MOUNT_DIR/root/usr" -xdev ! -type l \
+    \( -perm -002 -o \( -perm -020 ! -gid 0 \) \) -exec chmod go-w {} +
+  # systemd warns about executable unit files
+  safe sudo find "$MOUNT_DIR/root/etc/systemd" "$MOUNT_DIR/root/lib/systemd/system" -type f \
+    \( -name '*.service' -o -name '*.timer' -o -name '*.socket' -o -name '*.mount' \
+       -o -name '*.target' -o -name '*.path' -o -name '*.conf' \) -exec chmod 644 {} +
 }
 
 pack_roms_tar() {
@@ -326,7 +359,7 @@ if [[ "$ARKOS_IMAGE_NAME" == *dArkOS* ]]; then
   # ============================================================
   # dArkOS (UID=1000)
   # ============================================================
-  echo "=== 检测到 dArkOS 镜像：sync dArkOS，权限 777 / 1000:1000 ==="
+  echo "=== 检测到 dArkOS 镜像：sync dArkOS，用户目录 777 / 1000:1000 ==="
   CHOWN_USER="1000:1000"
 
   echo "== sync boot/dArkOS =="
@@ -355,7 +388,7 @@ else
   # ============================================================
   # ArkOS (UID=1002)：先 dArkOS 后 ArkOS 分层覆盖
   # ============================================================
-  echo "=== 检测到 ArkOS 镜像：先 sync dArkOS 再 sync ArkOS，权限 777 / 1002:1002 ==="
+  echo "=== 检测到 ArkOS 镜像：先 sync dArkOS 再 sync ArkOS，用户目录 777 / 1002:1002 ==="
   CHOWN_USER="1002:1002"
 
   echo "== sync boot/dArkOS + boot/ArkOS =="
@@ -393,24 +426,19 @@ else
   echo "== 删除logo随机 =="
   safe sudo sed -i '/imageshift\.sh/d' "$MOUNT_DIR/root/var/spool/cron/crontabs/root"
   safe sudo rm -f "$MOUNT_DIR/root/home/ark/.config/imageshift.sh"
-  safe sudo chown -R $CHOWN_USER "$MOUNT_DIR/root/lib/systemd/system/mpv.service"
-
-  # sync_rootfs gives every file mode 777; systemd warns about world-writable
-  # and executable unit files, and any user could change what root runs
-  echo "== systemd unit 权限 644 =="
-  safe sudo find "$MOUNT_DIR/root/etc/systemd" "$MOUNT_DIR/root/lib/systemd/system" -type f \
-    \( -name '*.service' -o -name '*.timer' -o -name '*.socket' -o -name '*.mount' \
-       -o -name '*.target' -o -name '*.path' -o -name '*.conf' \) -exec chmod 644 {} +
-
-  # the base image's bind mount carries a device timeout, which systemd ignores
-  # for bind mounts and warns about at every boot
-  for f in "$MOUNT_DIR/root/etc/fstab" "$MOUNT_DIR/boot/fstab.exfat"; do
-    [[ -f "$f" ]] && safe sudo sed -i -E 's#^(/roms/tools[[:space:]]+/opt/system/Tools[[:space:]]+none[[:space:]]+[^[:space:]]*),x-systemd\.device-timeout=[0-9]+#\1#' "$f"
-  done
 
   echo "== 设置 ArkOS plymouth 标题 =="
   safe sudo sed -i "/title\=/c\title\=ArkOS4Clone ($UPDATE_DATE)($MODDER)" "$MOUNT_DIR/root/usr/share/plymouth/themes/text.plymouth"
 fi
+
+echo "== 系统目录权限: / /etc /usr 归 root, 无组/其他写权限 =="
+fix_system_permissions
+
+# the base image's bind mount carries a device timeout, which systemd ignores
+# for bind mounts and warns about at every boot
+for f in "$MOUNT_DIR/root/etc/fstab" "$MOUNT_DIR/boot/fstab.exfat"; do
+  [[ -f "$f" ]] && safe sudo sed -i -E 's#^(/roms/tools[[:space:]]+/opt/system/Tools[[:space:]]+none[[:space:]]+[^[:space:]]*),x-systemd\.device-timeout=[0-9]+#\1#' "$f"
+done
 
 echo "== 注入后镜像 root 分区剩余空间 =="
 df -h "$MOUNT_DIR/root" || true
