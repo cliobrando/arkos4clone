@@ -135,13 +135,25 @@ var ddrFreqOptions = []FreqOption{
 // next to the 4.4 files, and 6.1 in consoles/kernel/6.1/ and a 6.1 folder.
 // 7.1 is in consoles/kernel/7.1/, and only for consoles with a 7.1 folder,
 // which holds their DTB and boot.ini: its command line differs, and it has
-// one battery driver and no overclock options.
+// one battery driver and no overclock options. 7.3 works the same way, with
+// a 7.3 folder, and is the only kernel with F2FS built in.
 const (
 	Kernel44  = "4.4"
 	Kernel510 = "5.10"
 	Kernel61  = "6.1"
 	Kernel71  = "7.1"
+	Kernel73  = "7.3"
 )
+
+// RootfsF2FSMarker on the BOOT partition says the image's root partition is
+// F2FS (written by the image build). Only the 7.3 kernel can mount it.
+const RootfsF2FSMarker = "rootfs.f2fs"
+
+// isKernel7 reports whether kernel is one of the 7.x kernels, which bring
+// their own boot.ini and have no battery or overclock options.
+func isKernel7(kernel string) bool {
+	return kernel == Kernel71 || kernel == Kernel73
+}
 
 // GPU and DDR options of the 5.10 kernel are its OPPs: the kernel removes
 // every OPP above max_gpufreq/max_ddrfreq, so a value between two OPPs would
@@ -159,8 +171,17 @@ var ddrFreqOptions510 = []FreqOption{
 // needs no option.
 const gaugeBootArg = "rk817_gauge"
 
-// SelectKernel asks the user which kernel to boot.
-func SelectKernel(lang *i18n.Language, has71 bool) (string, error) {
+// SelectKernel asks the user which kernel to boot. On an image with an F2FS
+// root only 7.3 can boot, so it is chosen without asking, and a console
+// without a 7.3 kernel is refused.
+func SelectKernel(lang *i18n.Language, has71, has73, f2fsRoot bool) (string, error) {
+	if f2fsRoot {
+		if !has73 {
+			return "", fmt.Errorf("%s", lang.Menu3.F2FSNeeds73)
+		}
+		ui.Println(ui.ColorWrap(lang.Menu3.F2FSUses73, ui.StyleCyan))
+		return Kernel73, nil
+	}
 	ui.ClearScreen()
 	ui.Println("")
 	ui.BoxHeader(lang.Menu3.SelectKernel)
@@ -169,6 +190,9 @@ func SelectKernel(lang *i18n.Language, has71 bool) (string, error) {
 	ui.Println(lang.Menu3.Kernel61)
 	if has71 {
 		ui.Println(lang.Menu3.Kernel71)
+	}
+	if has73 {
+		ui.Println(lang.Menu3.Kernel73)
 	}
 
 	for {
@@ -186,6 +210,11 @@ func SelectKernel(lang *i18n.Language, has71 bool) (string, error) {
 		case 4:
 			if has71 {
 				return Kernel71, nil
+			}
+			ui.Println(ui.ColorWrap(lang.Common.InvalidSelection, ui.StyleRed))
+		case 5:
+			if has73 {
+				return Kernel73, nil
 			}
 			ui.Println(ui.ColorWrap(lang.Common.InvalidSelection, ui.StyleRed))
 		default:
@@ -484,16 +513,18 @@ func copyConsoleFiles(srcPath, baseDir, kernel string) error {
 		kernelSub = Kernel61
 	case Kernel71:
 		kernelSub = Kernel71
+	case Kernel73:
+		kernelSub = Kernel73
 	}
 	for _, e := range entries {
 		src := filepath.Join(srcPath, e.Name())
 		dst := filepath.Join(baseDir, e.Name())
 		switch {
-		case e.IsDir() && (e.Name() == Kernel510 || e.Name() == Kernel61 || e.Name() == Kernel71):
+		case e.IsDir() && (e.Name() == Kernel510 || e.Name() == Kernel61 || isKernel7(e.Name())):
 			continue
 		case e.IsDir():
 			err = CopyDirectory(src, dst)
-		case kernel == Kernel71 && e.Name() == "boot.ini":
+		case isKernel7(kernel) && e.Name() == "boot.ini":
 			err = CopyFile(filepath.Join(srcPath, kernelSub, e.Name()), dst)
 		case kernelSub != "" && strings.HasSuffix(e.Name(), ".dtb"):
 			src = filepath.Join(srcPath, kernelSub, e.Name())
@@ -525,8 +556,11 @@ func CopySelectedConsole(lang *i18n.Language, selected *ui.ConsoleOption, baseDi
 		return fmt.Errorf("source directory not found: %s", srcPath)
 	}
 
-	_, statErr := os.Stat(filepath.Join(srcPath, Kernel71))
-	kernel, err := SelectKernel(lang, statErr == nil)
+	exists := func(p string) bool { _, err := os.Stat(p); return err == nil }
+	kernel, err := SelectKernel(lang,
+		exists(filepath.Join(srcPath, Kernel71)),
+		exists(filepath.Join(srcPath, Kernel73)),
+		exists(filepath.Join(baseDir, RootfsF2FSMarker)))
 	if err != nil {
 		return fmt.Errorf("failed to select kernel: %v", err)
 	}
@@ -536,7 +570,7 @@ func CopySelectedConsole(lang *i18n.Language, selected *ui.ConsoleOption, baseDi
 	}
 
 	batteryVersion := ""
-	if kernel != Kernel71 {
+	if !isKernel7(kernel) {
 		batteryVersion, err = SelectBatteryVersion(lang)
 		if err != nil {
 			return fmt.Errorf("failed to select battery version: %v", err)
@@ -552,6 +586,8 @@ func CopySelectedConsole(lang *i18n.Language, selected *ui.ConsoleOption, baseDi
 		imageDir = Kernel61
 	case Kernel71:
 		imageDir = Kernel71
+	case Kernel73:
+		imageDir = Kernel73
 	}
 	kernelSrc := filepath.Join(baseDir, "consoles", "kernel", imageDir, "Image")
 	if _, err := os.Stat(kernelSrc); err != nil {
@@ -568,7 +604,7 @@ func CopySelectedConsole(lang *i18n.Language, selected *ui.ConsoleOption, baseDi
 	}
 
 	var ocCfg *OverclockConfig
-	if kernel != Kernel71 {
+	if !isKernel7(kernel) {
 		ocCfg, err = SelectOverclocking(lang, kernel)
 		if err != nil {
 			return fmt.Errorf("failed to select overclocking: %v", err)

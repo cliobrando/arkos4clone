@@ -1,0 +1,309 @@
+kernel/fs/nfs_common/grace.ko:
+kernel/fs/fuse/cuse.ko:
+kernel/fs/dlm/dlm.ko:
+kernel/fs/nfsd/nfsd.ko: kernel/fs/lockd/lockd.ko kernel/fs/nfs_common/grace.ko kernel/net/sunrpc/sunrpc.ko
+kernel/fs/lockd/lockd.ko: kernel/fs/nfs_common/grace.ko kernel/net/sunrpc/sunrpc.ko
+kernel/fs/ntfs/ntfs.ko:
+kernel/fs/ntfs3/ntfs3.ko:
+kernel/crypto/crypto_engine.ko:
+kernel/crypto/seqiv.ko:
+kernel/crypto/crypto_user.ko:
+kernel/crypto/cts.ko:
+kernel/crypto/camellia_generic.ko:
+kernel/crypto/arc4.ko: kernel/lib/crypto/libarc4.ko
+kernel/crypto/chacha.ko: kernel/lib/crypto/libchacha.ko
+kernel/crypto/authenc.ko:
+kernel/crypto/authencesn.ko: kernel/crypto/authenc.ko
+kernel/crypto/krb5enc.ko:
+kernel/crypto/algif_aead.ko:
+kernel/crypto/ecc.ko:
+kernel/crypto/ecdh_generic.ko: kernel/crypto/ecc.ko
+kernel/crypto/krb5/krb5.ko:
+kernel/lib/math/cordic.ko:
+kernel/lib/crc/crc-ccitt.ko:
+kernel/lib/crypto/libarc4.ko:
+kernel/lib/crypto/libchacha.ko:
+kernel/lib/crypto/libchacha20poly1305.ko: kernel/lib/crypto/libpoly1305.ko kernel/lib/crypto/libchacha.ko
+kernel/lib/crypto/libcurve25519.ko:
+kernel/lib/crypto/libpoly1305.ko:
+kernel/drivers/leds/led-class-flash.ko:
+kernel/drivers/pmdomain/arm/scmi_perf_domain.ko: kernel/drivers/firmware/arm_scmi/scmi-core.ko
+kernel/drivers/pmdomain/arm/scmi_pm_domain.ko: kernel/drivers/firmware/arm_scmi/scmi-core.ko
+kernel/drivers/reset/reset-scmi.ko: kernel/drivers/firmware/arm_scmi/scmi-core.ko
+kernel/drivers/char/hw_random/rng-core.ko:
+kernel/drivers/char/hw_random/optee-rng.ko: kernel/drivers/char/hw_random/rng-core.ko
+kernel/drivers/char/hw_random/arm_smccc_trng.ko: kernel/drivers/char/hw_random/rng-core.ko
+kernel/drivers/char/hw_random/rockchip-rng.ko: kernel/drivers/char/hw_random/rng-core.ko
+kernel/drivers/gpu/drm/bridge/display-connector.ko:
+kernel/drivers/gpu/drm/tiny/panel-mipi-dbi.ko:
+kernel/drivers/misc/eeprom/eeprom_93cx6.ko:
+kernel/drivers/spi/spidev.ko:
+kernel/drivers/net/phy/phylink.ko:
+kernel/drivers/net/phy/ax88796b.ko:
+kernel/drivers/net/phy/microchip.ko:
+kernel/drivers/net/phy/smsc.ko:
+kernel/drivers/net/wireless/ath/ath9k/ath9k.ko: kernel/drivers/net/wireless/ath/ath9k/ath9k_common.ko kernel/drivers/net/wireless/ath/ath9k/ath9k_hw.ko kernel/drivers/net/wireless/ath/ath.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/drivers/char/hw_random/rng-core.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/ath/ath9k/ath9k_hw.ko: kernel/drivers/net/wireless/ath/ath.ko kernel/net/wireless/cfg80211.ko
+kernel/drivers/net/wireless/ath/ath9k/ath9k_common.ko: kernel/drivers/net/wireless/ath/ath9k/ath9k_hw.ko kernel/drivers/net/wireless/ath/ath.ko kernel/net/wireless/cfg80211.ko
+kernel/drivers/net/wireless/ath/ath9k/ath9k_htc.ko: kernel/drivers/net/wireless/ath/ath9k/ath9k_common.ko kernel/drivers/net/wireless/ath/ath9k/ath9k_hw.ko kernel/drivers/net/wireless/ath/ath.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/ath/carl9170/carl9170.ko: kernel/drivers/net/wireless/ath/ath.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/drivers/char/hw_random/rng-core.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/ath/ath6kl/ath6kl_core.ko: kernel/net/wireless/cfg80211.ko
+kernel/drivers/net/wireless/ath/ath6kl/ath6kl_usb.ko: kernel/drivers/net/wireless/ath/ath6kl/ath6kl_core.ko kernel/net/wireless/cfg80211.ko
+kernel/drivers/net/wireless/ath/ar5523/ar5523.ko: kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/ath/ath10k/ath10k_core.ko: kernel/drivers/net/wireless/ath/ath.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/ath/ath10k/ath10k_usb.ko: kernel/drivers/net/wireless/ath/ath10k/ath10k_core.ko kernel/drivers/net/wireless/ath/ath.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/ath/wcn36xx/wcn36xx.ko: kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/ath/ath.ko: kernel/net/wireless/cfg80211.ko
+kernel/drivers/net/wireless/intersil/p54/p54common.ko: kernel/lib/crc/crc-ccitt.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/intersil/p54/p54usb.ko: kernel/drivers/net/wireless/intersil/p54/p54common.ko kernel/lib/crc/crc-ccitt.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/marvell/libertas/libertas.ko: kernel/net/wireless/cfg80211.ko
+kernel/drivers/net/wireless/marvell/libertas/usb8xxx.ko: kernel/drivers/net/wireless/marvell/libertas/libertas.ko kernel/net/wireless/cfg80211.ko
+kernel/drivers/net/wireless/marvell/libertas_tf/libertas_tf.ko: kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/marvell/libertas_tf/libertas_tf_usb.ko: kernel/drivers/net/wireless/marvell/libertas_tf/libertas_tf.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/marvell/mwifiex/mwifiex.ko: kernel/net/wireless/cfg80211.ko
+kernel/drivers/net/wireless/marvell/mwifiex/mwifiex_usb.ko: kernel/drivers/net/wireless/marvell/mwifiex/mwifiex.ko kernel/net/wireless/cfg80211.ko
+kernel/drivers/net/wireless/mediatek/mt7601u/mt7601u.ko: kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/mediatek/mt76/mt76.ko: kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/mediatek/mt76/mt76-usb.ko: kernel/drivers/net/wireless/mediatek/mt76/mt76.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/mediatek/mt76/mt76-sdio.ko: kernel/drivers/net/wireless/mediatek/mt76/mt76.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/mediatek/mt76/mt76x02-lib.ko: kernel/drivers/net/wireless/mediatek/mt76/mt76.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/mediatek/mt76/mt76x02-usb.ko: kernel/drivers/net/wireless/mediatek/mt76/mt76-usb.ko kernel/drivers/net/wireless/mediatek/mt76/mt76x02-lib.ko kernel/drivers/net/wireless/mediatek/mt76/mt76.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/mediatek/mt76/mt76-connac-lib.ko: kernel/drivers/net/wireless/mediatek/mt76/mt76.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/mediatek/mt76/mt76x0/mt76x0u.ko: kernel/drivers/net/wireless/mediatek/mt76/mt76x0/mt76x0-common.ko kernel/drivers/net/wireless/mediatek/mt76/mt76x02-usb.ko kernel/drivers/net/wireless/mediatek/mt76/mt76-usb.ko kernel/drivers/net/wireless/mediatek/mt76/mt76x02-lib.ko kernel/drivers/net/wireless/mediatek/mt76/mt76.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/mediatek/mt76/mt76x0/mt76x0-common.ko: kernel/drivers/net/wireless/mediatek/mt76/mt76x02-lib.ko kernel/drivers/net/wireless/mediatek/mt76/mt76.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/mediatek/mt76/mt76x2/mt76x2-common.ko: kernel/drivers/net/wireless/mediatek/mt76/mt76x02-lib.ko kernel/drivers/net/wireless/mediatek/mt76/mt76.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/mediatek/mt76/mt76x2/mt76x2u.ko: kernel/drivers/net/wireless/mediatek/mt76/mt76x2/mt76x2-common.ko kernel/drivers/net/wireless/mediatek/mt76/mt76x02-usb.ko kernel/drivers/net/wireless/mediatek/mt76/mt76-usb.ko kernel/drivers/net/wireless/mediatek/mt76/mt76x02-lib.ko kernel/drivers/net/wireless/mediatek/mt76/mt76.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/mediatek/mt76/mt7615/mt7615-common.ko: kernel/drivers/net/wireless/mediatek/mt76/mt76-connac-lib.ko kernel/drivers/net/wireless/mediatek/mt76/mt76.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/mediatek/mt76/mt7615/mt7663-usb-sdio-common.ko: kernel/drivers/net/wireless/mediatek/mt76/mt7615/mt7615-common.ko kernel/drivers/net/wireless/mediatek/mt76/mt76-connac-lib.ko kernel/drivers/net/wireless/mediatek/mt76/mt76.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/mediatek/mt76/mt7615/mt7663u.ko: kernel/drivers/net/wireless/mediatek/mt76/mt7615/mt7663-usb-sdio-common.ko kernel/drivers/net/wireless/mediatek/mt76/mt7615/mt7615-common.ko kernel/drivers/net/wireless/mediatek/mt76/mt76-connac-lib.ko kernel/drivers/net/wireless/mediatek/mt76/mt76-usb.ko kernel/drivers/net/wireless/mediatek/mt76/mt76.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/mediatek/mt76/mt7615/mt7663s.ko: kernel/drivers/net/wireless/mediatek/mt76/mt76-sdio.ko kernel/drivers/net/wireless/mediatek/mt76/mt7615/mt7663-usb-sdio-common.ko kernel/drivers/net/wireless/mediatek/mt76/mt7615/mt7615-common.ko kernel/drivers/net/wireless/mediatek/mt76/mt76-connac-lib.ko kernel/drivers/net/wireless/mediatek/mt76/mt76.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/ralink/rt2x00/rt2x00lib.ko: kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/ralink/rt2x00/rt2x00usb.ko: kernel/drivers/net/wireless/ralink/rt2x00/rt2x00lib.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/ralink/rt2x00/rt2800lib.ko: kernel/drivers/net/wireless/ralink/rt2x00/rt2x00lib.ko kernel/lib/crc/crc-ccitt.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/ralink/rt2x00/rt2500usb.ko: kernel/drivers/net/wireless/ralink/rt2x00/rt2x00usb.ko kernel/drivers/net/wireless/ralink/rt2x00/rt2x00lib.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/ralink/rt2x00/rt73usb.ko: kernel/drivers/net/wireless/ralink/rt2x00/rt2x00usb.ko kernel/drivers/net/wireless/ralink/rt2x00/rt2x00lib.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/ralink/rt2x00/rt2800usb.ko: kernel/drivers/net/wireless/ralink/rt2x00/rt2800lib.ko kernel/drivers/net/wireless/ralink/rt2x00/rt2x00usb.ko kernel/drivers/net/wireless/ralink/rt2x00/rt2x00lib.ko kernel/lib/crc/crc-ccitt.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtl818x/rtl8187/rtl8187.ko: kernel/drivers/misc/eeprom/eeprom_93cx6.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtlwifi/rtlwifi.ko: kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtlwifi/rtl_usb.ko: kernel/drivers/net/wireless/realtek/rtlwifi/rtlwifi.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtlwifi/rtl8192c/rtl8192c-common.ko: kernel/drivers/net/wireless/realtek/rtlwifi/rtlwifi.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtlwifi/rtl8192cu/rtl8192cu.ko: kernel/drivers/net/wireless/realtek/rtlwifi/rtl_usb.ko kernel/drivers/net/wireless/realtek/rtlwifi/rtl8192c/rtl8192c-common.ko kernel/drivers/net/wireless/realtek/rtlwifi/rtlwifi.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtl8xxxu/rtl8xxxu.ko: kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtw88/rtw88_core.ko: kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtw88/rtw88_8822b.ko: kernel/drivers/net/wireless/realtek/rtw88/rtw88_core.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtw88/rtw88_8822bs.ko: kernel/drivers/net/wireless/realtek/rtw88/rtw88_8822b.ko kernel/drivers/net/wireless/realtek/rtw88/rtw88_sdio.ko kernel/drivers/net/wireless/realtek/rtw88/rtw88_core.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtw88/rtw88_8822bu.ko: kernel/drivers/net/wireless/realtek/rtw88/rtw88_usb.ko kernel/drivers/net/wireless/realtek/rtw88/rtw88_8822b.ko kernel/drivers/net/wireless/realtek/rtw88/rtw88_core.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtw88/rtw88_8822c.ko: kernel/drivers/net/wireless/realtek/rtw88/rtw88_core.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtw88/rtw88_8822cs.ko: kernel/drivers/net/wireless/realtek/rtw88/rtw88_8822c.ko kernel/drivers/net/wireless/realtek/rtw88/rtw88_sdio.ko kernel/drivers/net/wireless/realtek/rtw88/rtw88_core.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtw88/rtw88_8822cu.ko: kernel/drivers/net/wireless/realtek/rtw88/rtw88_8822c.ko kernel/drivers/net/wireless/realtek/rtw88/rtw88_usb.ko kernel/drivers/net/wireless/realtek/rtw88/rtw88_core.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtw88/rtw88_8723x.ko: kernel/drivers/net/wireless/realtek/rtw88/rtw88_core.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtw88/rtw88_8703b.ko: kernel/drivers/net/wireless/realtek/rtw88/rtw88_8723x.ko kernel/drivers/net/wireless/realtek/rtw88/rtw88_core.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtw88/rtw88_8723cs.ko: kernel/drivers/net/wireless/realtek/rtw88/rtw88_8703b.ko kernel/drivers/net/wireless/realtek/rtw88/rtw88_8723x.ko kernel/drivers/net/wireless/realtek/rtw88/rtw88_sdio.ko kernel/drivers/net/wireless/realtek/rtw88/rtw88_core.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtw88/rtw88_8723d.ko: kernel/drivers/net/wireless/realtek/rtw88/rtw88_8723x.ko kernel/drivers/net/wireless/realtek/rtw88/rtw88_core.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtw88/rtw88_8723ds.ko: kernel/drivers/net/wireless/realtek/rtw88/rtw88_8723d.ko kernel/drivers/net/wireless/realtek/rtw88/rtw88_8723x.ko kernel/drivers/net/wireless/realtek/rtw88/rtw88_sdio.ko kernel/drivers/net/wireless/realtek/rtw88/rtw88_core.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtw88/rtw88_8723du.ko: kernel/drivers/net/wireless/realtek/rtw88/rtw88_8723d.ko kernel/drivers/net/wireless/realtek/rtw88/rtw88_8723x.ko kernel/drivers/net/wireless/realtek/rtw88/rtw88_usb.ko kernel/drivers/net/wireless/realtek/rtw88/rtw88_core.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtw88/rtw88_8821c.ko: kernel/drivers/net/wireless/realtek/rtw88/rtw88_core.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtw88/rtw88_8821cs.ko: kernel/drivers/net/wireless/realtek/rtw88/rtw88_8821c.ko kernel/drivers/net/wireless/realtek/rtw88/rtw88_sdio.ko kernel/drivers/net/wireless/realtek/rtw88/rtw88_core.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtw88/rtw88_8821cu.ko: kernel/drivers/net/wireless/realtek/rtw88/rtw88_8821c.ko kernel/drivers/net/wireless/realtek/rtw88/rtw88_usb.ko kernel/drivers/net/wireless/realtek/rtw88/rtw88_core.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtw88/rtw88_88xxa.ko: kernel/drivers/net/wireless/realtek/rtw88/rtw88_core.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtw88/rtw88_8821a.ko: kernel/drivers/net/wireless/realtek/rtw88/rtw88_88xxa.ko kernel/drivers/net/wireless/realtek/rtw88/rtw88_core.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtw88/rtw88_8812a.ko: kernel/drivers/net/wireless/realtek/rtw88/rtw88_88xxa.ko kernel/drivers/net/wireless/realtek/rtw88/rtw88_core.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtw88/rtw88_8821au.ko: kernel/drivers/net/wireless/realtek/rtw88/rtw88_8821a.ko kernel/drivers/net/wireless/realtek/rtw88/rtw88_88xxa.ko kernel/drivers/net/wireless/realtek/rtw88/rtw88_usb.ko kernel/drivers/net/wireless/realtek/rtw88/rtw88_core.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtw88/rtw88_8812au.ko: kernel/drivers/net/wireless/realtek/rtw88/rtw88_8812a.ko kernel/drivers/net/wireless/realtek/rtw88/rtw88_88xxa.ko kernel/drivers/net/wireless/realtek/rtw88/rtw88_usb.ko kernel/drivers/net/wireless/realtek/rtw88/rtw88_core.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtw88/rtw88_8814a.ko: kernel/drivers/net/wireless/realtek/rtw88/rtw88_core.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtw88/rtw88_8814au.ko: kernel/drivers/net/wireless/realtek/rtw88/rtw88_8814a.ko kernel/drivers/net/wireless/realtek/rtw88/rtw88_usb.ko kernel/drivers/net/wireless/realtek/rtw88/rtw88_core.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtw88/rtw88_sdio.ko: kernel/drivers/net/wireless/realtek/rtw88/rtw88_core.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtw88/rtw88_usb.ko: kernel/drivers/net/wireless/realtek/rtw88/rtw88_core.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtw89/rtw89_core.ko: kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtw89/rtw89_8851b.ko: kernel/drivers/net/wireless/realtek/rtw89/rtw89_core.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtw89/rtw89_8851bu.ko: kernel/drivers/net/wireless/realtek/rtw89/rtw89_usb.ko kernel/drivers/net/wireless/realtek/rtw89/rtw89_8851b.ko kernel/drivers/net/wireless/realtek/rtw89/rtw89_core.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtw89/rtw89_8852b_common.ko: kernel/drivers/net/wireless/realtek/rtw89/rtw89_core.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtw89/rtw89_8852b.ko: kernel/drivers/net/wireless/realtek/rtw89/rtw89_8852b_common.ko kernel/drivers/net/wireless/realtek/rtw89/rtw89_core.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtw89/rtw89_8852bu.ko: kernel/drivers/net/wireless/realtek/rtw89/rtw89_8852b.ko kernel/drivers/net/wireless/realtek/rtw89/rtw89_8852b_common.ko kernel/drivers/net/wireless/realtek/rtw89/rtw89_usb.ko kernel/drivers/net/wireless/realtek/rtw89/rtw89_core.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/realtek/rtw89/rtw89_usb.ko: kernel/drivers/net/wireless/realtek/rtw89/rtw89_core.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/ti/wlcore/wlcore.ko: kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/ti/wl12xx/wl12xx.ko: kernel/drivers/net/wireless/ti/wlcore/wlcore.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/ti/wl18xx/wl18xx.ko: kernel/drivers/net/wireless/ti/wlcore/wlcore.ko kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/rockchip_wlan/rk915/rk915.ko: kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireless/esp8089/esp8089.ko: kernel/net/mac80211/mac80211.ko kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/net/wireguard/wireguard.ko: kernel/lib/crypto/libcurve25519.ko kernel/lib/crypto/libchacha20poly1305.ko kernel/lib/crypto/libpoly1305.ko kernel/net/ipv6/ip6_udp_tunnel.ko kernel/net/ipv4/udp_tunnel.ko kernel/lib/crypto/libchacha.ko
+kernel/drivers/net/mii.ko:
+kernel/drivers/net/netconsole.ko:
+kernel/drivers/net/tun.ko:
+kernel/drivers/net/veth.ko:
+kernel/drivers/net/nlmon.ko:
+kernel/drivers/net/usb/rtl8150.ko:
+kernel/drivers/net/usb/r8152.ko: kernel/drivers/net/mii.ko
+kernel/drivers/net/usb/asix.ko: kernel/drivers/net/phy/phylink.ko kernel/drivers/net/usb/usbnet.ko kernel/drivers/net/mii.ko
+kernel/drivers/net/usb/ax88179_178a.ko: kernel/drivers/net/usb/usbnet.ko kernel/drivers/net/mii.ko
+kernel/drivers/net/usb/cdc_ether.ko: kernel/drivers/net/usb/usbnet.ko kernel/drivers/net/mii.ko
+kernel/drivers/net/usb/smsc75xx.ko: kernel/drivers/net/usb/usbnet.ko kernel/drivers/net/mii.ko
+kernel/drivers/net/usb/smsc95xx.ko: kernel/drivers/net/usb/usbnet.ko kernel/drivers/net/mii.ko
+kernel/drivers/net/usb/rndis_host.ko: kernel/drivers/net/usb/cdc_ether.ko kernel/drivers/net/usb/usbnet.ko kernel/drivers/net/mii.ko
+kernel/drivers/net/usb/usbnet.ko: kernel/drivers/net/mii.ko
+kernel/drivers/net/usb/cdc_ncm.ko: kernel/drivers/net/usb/cdc_ether.ko kernel/drivers/net/usb/usbnet.ko kernel/drivers/net/mii.ko
+kernel/drivers/net/usb/cdc_mbim.ko: kernel/drivers/usb/class/cdc-wdm.ko kernel/drivers/net/usb/cdc_ncm.ko kernel/drivers/net/usb/cdc_ether.ko kernel/drivers/net/usb/usbnet.ko kernel/drivers/net/mii.ko
+kernel/drivers/net/usb/r8153_ecm.ko: kernel/drivers/net/usb/r8152.ko kernel/drivers/net/usb/cdc_ether.ko kernel/drivers/net/usb/usbnet.ko kernel/drivers/net/mii.ko
+kernel/drivers/usb/class/cdc-wdm.ko:
+kernel/drivers/input/serio/serport.ko:
+kernel/drivers/input/joystick/xpad.ko:
+kernel/drivers/input/misc/gpio_decoder.ko:
+kernel/drivers/input/misc/gpio-vibra.ko:
+kernel/drivers/input/rmi4/rmi_core.ko:
+kernel/drivers/i2c/algos/i2c-algo-bit.ko:
+kernel/drivers/i2c/busses/i2c-gpio.ko: kernel/drivers/i2c/algos/i2c-algo-bit.ko
+kernel/drivers/media/v4l2-core/v4l2-async.ko:
+kernel/drivers/media/v4l2-core/v4l2-flash-led-class.ko: kernel/drivers/leds/led-class-flash.ko kernel/drivers/media/v4l2-core/v4l2-async.ko
+kernel/drivers/power/supply/gpio-charger.ko:
+kernel/drivers/firmware/arm_scmi/transports/scmi_transport_smc.ko:
+kernel/drivers/firmware/arm_scmi/transports/scmi_transport_mailbox.ko:
+kernel/drivers/firmware/arm_scmi/transports/scmi_transport_optee.ko:
+kernel/drivers/firmware/arm_scmi/scmi-core.ko:
+kernel/drivers/firmware/arm_scmi/scmi-module.ko: kernel/drivers/firmware/arm_scmi/scmi-core.ko
+kernel/drivers/crypto/rockchip/rk_crypto.ko: kernel/crypto/crypto_engine.ko
+kernel/drivers/hid/hid-a4tech.ko:
+kernel/drivers/hid/hid-alps.ko:
+kernel/drivers/hid/hid-axff.ko:
+kernel/drivers/hid/hid-apple.ko:
+kernel/drivers/hid/hid-appleir.ko:
+kernel/drivers/hid/hid-aureal.ko:
+kernel/drivers/hid/hid-belkin.ko:
+kernel/drivers/hid/hid-betopff.ko:
+kernel/drivers/hid/hid-cherry.ko:
+kernel/drivers/hid/hid-chicony.ko:
+kernel/drivers/hid/hid-corsair.ko:
+kernel/drivers/hid/hid-corsair-void.ko:
+kernel/drivers/hid/hid-cypress.ko:
+kernel/drivers/hid/hid-dr.ko:
+kernel/drivers/hid/hid-emsff.ko:
+kernel/drivers/hid/hid-elecom.ko:
+kernel/drivers/hid/hid-elo.ko:
+kernel/drivers/hid/hid-ezkey.ko:
+kernel/drivers/hid/hid-gembird.ko:
+kernel/drivers/hid/hid-gfrm.ko:
+kernel/drivers/hid/hid-gt683r.ko:
+kernel/drivers/hid/hid-gyration.ko:
+kernel/drivers/hid/hid-holtek-kbd.ko:
+kernel/drivers/hid/hid-holtek-mouse.ko:
+kernel/drivers/hid/hid-holtekff.ko:
+kernel/drivers/hid/hid-icade.ko:
+kernel/drivers/hid/hid-kensington.ko:
+kernel/drivers/hid/hid-keytouch.ko:
+kernel/drivers/hid/hid-kye.ko:
+kernel/drivers/hid/hid-lcpower.ko:
+kernel/drivers/hid/hid-lenovo.ko:
+kernel/drivers/hid/hid-magicmouse.ko:
+kernel/drivers/hid/hid-microsoft.ko:
+kernel/drivers/hid/hid-monterey.ko:
+kernel/drivers/hid/hid-multitouch.ko:
+kernel/drivers/hid/hid-nintendo.ko:
+kernel/drivers/hid/hid-ntrig.ko:
+kernel/drivers/hid/hid-ortek.ko:
+kernel/drivers/hid/hid-prodikeys.ko: kernel/sound/core/snd-rawmidi.ko kernel/sound/core/snd-seq-device.ko
+kernel/drivers/hid/hid-pl.ko:
+kernel/drivers/hid/hid-penmount.ko:
+kernel/drivers/hid/hid-petalynx.ko:
+kernel/drivers/hid/hid-picolcd.ko:
+kernel/drivers/hid/hid-plantronics.ko:
+kernel/drivers/hid/hid-primax.ko:
+kernel/drivers/hid/hid-roccat.ko:
+kernel/drivers/hid/hid-roccat-common.ko:
+kernel/drivers/hid/hid-roccat-arvo.ko: kernel/drivers/hid/hid-roccat.ko kernel/drivers/hid/hid-roccat-common.ko
+kernel/drivers/hid/hid-roccat-isku.ko: kernel/drivers/hid/hid-roccat.ko kernel/drivers/hid/hid-roccat-common.ko
+kernel/drivers/hid/hid-roccat-kone.ko: kernel/drivers/hid/hid-roccat.ko
+kernel/drivers/hid/hid-roccat-koneplus.ko: kernel/drivers/hid/hid-roccat.ko kernel/drivers/hid/hid-roccat-common.ko
+kernel/drivers/hid/hid-roccat-konepure.ko: kernel/drivers/hid/hid-roccat.ko kernel/drivers/hid/hid-roccat-common.ko
+kernel/drivers/hid/hid-roccat-kovaplus.ko: kernel/drivers/hid/hid-roccat.ko kernel/drivers/hid/hid-roccat-common.ko
+kernel/drivers/hid/hid-roccat-lua.ko: kernel/drivers/hid/hid-roccat-common.ko
+kernel/drivers/hid/hid-roccat-pyra.ko: kernel/drivers/hid/hid-roccat.ko kernel/drivers/hid/hid-roccat-common.ko
+kernel/drivers/hid/hid-roccat-ryos.ko: kernel/drivers/hid/hid-roccat.ko kernel/drivers/hid/hid-roccat-common.ko
+kernel/drivers/hid/hid-roccat-savu.ko: kernel/drivers/hid/hid-roccat.ko kernel/drivers/hid/hid-roccat-common.ko
+kernel/drivers/hid/hid-rmi.ko: kernel/drivers/input/rmi4/rmi_core.ko
+kernel/drivers/hid/hid-saitek.ko:
+kernel/drivers/hid/hid-samsung.ko:
+kernel/drivers/hid/hid-sjoy.ko:
+kernel/drivers/hid/hid-sony.ko:
+kernel/drivers/hid/hid-speedlink.ko:
+kernel/drivers/hid/hid-steam.ko:
+kernel/drivers/hid/hid-steelseries.ko:
+kernel/drivers/hid/hid-steelseries-arctis.ko:
+kernel/drivers/hid/hid-sunplus.ko:
+kernel/drivers/hid/hid-gaff.ko:
+kernel/drivers/hid/hid-tmff.ko:
+kernel/drivers/hid/hid-thrustmaster.ko:
+kernel/drivers/hid/hid-tivo.ko:
+kernel/drivers/hid/hid-topseed.ko:
+kernel/drivers/hid/hid-twinhan.ko:
+kernel/drivers/hid/hid-uclogic.ko:
+kernel/drivers/hid/hid-led.ko:
+kernel/drivers/hid/hid-xinmo.ko:
+kernel/drivers/hid/hid-zpff.ko:
+kernel/drivers/hid/hid-zydacron.ko:
+kernel/drivers/hid/wacom.ko:
+kernel/drivers/hid/hid-waltop.ko:
+kernel/drivers/hid/hid-wiimote.ko:
+kernel/drivers/hid/hid-sensor-hub.ko:
+kernel/drivers/hid/hid-sensor-custom.ko: kernel/drivers/hid/hid-sensor-hub.ko
+kernel/drivers/staging/rtl8723bs/r8723bs.ko: kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+kernel/drivers/nvmem/at25.ko:
+kernel/drivers/tee/optee/optee.ko:
+kernel/drivers/bluetooth/hci_uart.ko: kernel/drivers/bluetooth/btrtl.ko kernel/drivers/bluetooth/btbcm.ko kernel/net/bluetooth/bluetooth.ko kernel/crypto/ecdh_generic.ko kernel/crypto/ecc.ko kernel/lib/crc/crc-ccitt.ko
+kernel/drivers/bluetooth/btusb.ko: kernel/drivers/bluetooth/btintel.ko kernel/drivers/bluetooth/btrtl.ko kernel/drivers/bluetooth/btbcm.ko kernel/net/bluetooth/bluetooth.ko kernel/crypto/ecdh_generic.ko kernel/crypto/ecc.ko
+kernel/drivers/bluetooth/btintel.ko: kernel/net/bluetooth/bluetooth.ko kernel/crypto/ecdh_generic.ko kernel/crypto/ecc.ko
+kernel/drivers/bluetooth/btbcm.ko: kernel/net/bluetooth/bluetooth.ko kernel/crypto/ecdh_generic.ko kernel/crypto/ecc.ko
+kernel/drivers/bluetooth/btrtl.ko: kernel/net/bluetooth/bluetooth.ko kernel/crypto/ecdh_generic.ko kernel/crypto/ecc.ko
+kernel/sound/core/snd-hwdep.ko:
+kernel/sound/core/snd-seq-device.ko:
+kernel/sound/core/snd-rawmidi.ko: kernel/sound/core/snd-seq-device.ko
+kernel/sound/core/seq/snd-seq.ko: kernel/sound/core/snd-seq-device.ko
+kernel/sound/core/seq/snd-seq-midi.ko: kernel/sound/core/seq/snd-seq-midi-event.ko kernel/sound/core/seq/snd-seq.ko kernel/sound/core/snd-rawmidi.ko kernel/sound/core/snd-seq-device.ko
+kernel/sound/core/seq/snd-seq-midi-event.ko: kernel/sound/core/seq/snd-seq.ko kernel/sound/core/snd-seq-device.ko
+kernel/sound/usb/snd-usb-audio.ko: kernel/sound/core/snd-hwdep.ko kernel/sound/usb/snd-usbmidi-lib.ko kernel/sound/core/snd-rawmidi.ko kernel/sound/core/snd-seq-device.ko
+kernel/sound/usb/snd-usbmidi-lib.ko: kernel/sound/core/snd-rawmidi.ko kernel/sound/core/snd-seq-device.ko
+kernel/sound/soc/codecs/snd-soc-ak4613.ko:
+kernel/sound/soc/codecs/snd-soc-ts3a227e.ko:
+kernel/sound/soc/codecs/snd-soc-simple-amplifier.ko:
+kernel/sound/soc/rockchip/snd-soc-rockchip-pdm.ko:
+kernel/net/802/psnap.ko: kernel/net/llc/llc.ko
+kernel/net/802/stp.ko: kernel/net/llc/llc.ko
+kernel/net/netfilter/nf_conntrack.ko: kernel/net/ipv6/netfilter/nf_defrag_ipv6.ko kernel/net/ipv4/netfilter/nf_defrag_ipv4.ko
+kernel/net/netfilter/nf_log_syslog.ko:
+kernel/net/netfilter/nf_nat.ko: kernel/net/netfilter/nf_conntrack.ko kernel/net/ipv6/netfilter/nf_defrag_ipv6.ko kernel/net/ipv4/netfilter/nf_defrag_ipv4.ko
+kernel/net/netfilter/nf_tables.ko:
+kernel/net/netfilter/nft_nat.ko: kernel/net/netfilter/nf_nat.ko kernel/net/netfilter/nf_conntrack.ko kernel/net/ipv6/netfilter/nf_defrag_ipv6.ko kernel/net/ipv4/netfilter/nf_defrag_ipv4.ko kernel/net/netfilter/nf_tables.ko
+kernel/net/netfilter/nft_masq.ko: kernel/net/netfilter/nf_nat.ko kernel/net/netfilter/nf_conntrack.ko kernel/net/ipv6/netfilter/nf_defrag_ipv6.ko kernel/net/ipv4/netfilter/nf_defrag_ipv4.ko kernel/net/netfilter/nf_tables.ko
+kernel/net/netfilter/nft_chain_nat.ko: kernel/net/netfilter/nf_nat.ko kernel/net/netfilter/nf_conntrack.ko kernel/net/ipv6/netfilter/nf_defrag_ipv6.ko kernel/net/ipv4/netfilter/nf_defrag_ipv4.ko kernel/net/netfilter/nf_tables.ko
+kernel/net/netfilter/xt_nat.ko: kernel/net/netfilter/nf_nat.ko kernel/net/netfilter/nf_conntrack.ko kernel/net/ipv6/netfilter/nf_defrag_ipv6.ko kernel/net/ipv4/netfilter/nf_defrag_ipv4.ko
+kernel/net/netfilter/xt_LOG.ko:
+kernel/net/netfilter/xt_REDIRECT.ko: kernel/net/netfilter/nf_nat.ko kernel/net/netfilter/nf_conntrack.ko kernel/net/ipv6/netfilter/nf_defrag_ipv6.ko kernel/net/ipv4/netfilter/nf_defrag_ipv4.ko
+kernel/net/netfilter/xt_MASQUERADE.ko: kernel/net/netfilter/nf_nat.ko kernel/net/netfilter/nf_conntrack.ko kernel/net/ipv6/netfilter/nf_defrag_ipv6.ko kernel/net/ipv4/netfilter/nf_defrag_ipv4.ko
+kernel/net/netfilter/xt_addrtype.ko:
+kernel/net/netfilter/xt_conntrack.ko: kernel/net/netfilter/nf_conntrack.ko kernel/net/ipv6/netfilter/nf_defrag_ipv6.ko kernel/net/ipv4/netfilter/nf_defrag_ipv4.ko
+kernel/net/ipv4/netfilter/nf_defrag_ipv4.ko:
+kernel/net/ipv4/ip_tunnel.ko:
+kernel/net/ipv4/fou.ko: kernel/net/ipv6/ip6_udp_tunnel.ko kernel/net/ipv4/udp_tunnel.ko
+kernel/net/ipv4/udp_tunnel.ko:
+kernel/net/ipv4/tunnel4.ko:
+kernel/net/ipv4/tcp_bic.ko:
+kernel/net/ipv4/tcp_westwood.ko:
+kernel/net/ipv4/tcp_htcp.ko:
+kernel/net/ipv6/netfilter/nf_defrag_ipv6.ko:
+kernel/net/ipv6/netfilter/nf_reject_ipv6.ko:
+kernel/net/ipv6/sit.ko: kernel/net/ipv4/tunnel4.ko kernel/net/ipv4/ip_tunnel.ko
+kernel/net/ipv6/fou6.ko:
+kernel/net/ipv6/ip6_udp_tunnel.ko:
+kernel/net/8021q/8021q.ko:
+kernel/net/wireless/cfg80211.ko:
+kernel/net/llc/llc.ko:
+kernel/net/bridge/bridge.ko: kernel/net/802/stp.ko kernel/net/llc/llc.ko
+kernel/net/bridge/br_netfilter.ko: kernel/net/bridge/bridge.ko kernel/net/802/stp.ko kernel/net/llc/llc.ko
+kernel/net/bluetooth/bluetooth.ko: kernel/crypto/ecdh_generic.ko kernel/crypto/ecc.ko
+kernel/net/bluetooth/rfcomm/rfcomm.ko: kernel/net/bluetooth/bluetooth.ko kernel/crypto/ecdh_generic.ko kernel/crypto/ecc.ko
+kernel/net/bluetooth/hidp/hidp.ko: kernel/net/bluetooth/bluetooth.ko kernel/crypto/ecdh_generic.ko kernel/crypto/ecc.ko
+kernel/net/sunrpc/sunrpc.ko:
+kernel/net/sunrpc/auth_gss/auth_rpcgss.ko: kernel/net/sunrpc/sunrpc.ko
+kernel/net/sunrpc/auth_gss/rpcsec_gss_krb5.ko: kernel/net/sunrpc/auth_gss/auth_rpcgss.ko kernel/crypto/krb5/krb5.ko kernel/net/sunrpc/sunrpc.ko
+kernel/net/sctp/sctp.ko: kernel/net/ipv6/ip6_udp_tunnel.ko kernel/net/ipv4/udp_tunnel.ko
+kernel/net/sctp/sctp_diag.ko: kernel/net/sctp/sctp.ko kernel/net/ipv6/ip6_udp_tunnel.ko kernel/net/ipv4/udp_tunnel.ko
+kernel/net/mac80211/mac80211.ko: kernel/net/wireless/cfg80211.ko kernel/lib/crypto/libarc4.ko
+extra/mali_kbase.ko:
