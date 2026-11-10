@@ -102,12 +102,15 @@ do_mount() {
   # mount with gentle defaults (ro for boot if you prefer safety)
   mount_if_not "$p1" "$BOOT_MNT" vfat "rw,utf8,umask=000"
 
-  # Check if root partition is ext4 or btrfs
+  # Check if root partition is ext4, f2fs or btrfs
   local root_fstype
   root_fstype=$(blkid -o value -s TYPE "$p2")
 
   if [[ "$root_fstype" == "ext4" ]]; then
     mount_if_not "$p2" "$ROOT_MNT" ext4
+  elif [[ "$root_fstype" == "f2fs" ]]; then
+    # discard: space freed while building becomes holes in the image file
+    mount_if_not "$p2" "$ROOT_MNT" f2fs discard
   elif [[ "$root_fstype" == "btrfs" ]]; then
     mount_if_not "$p2" "$ROOT_MNT" btrfs
   else

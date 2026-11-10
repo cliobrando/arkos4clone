@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Convert the image's root partition (p2) from btrfs to ext4
+# Convert the image's root partition (p2) from btrfs to ext4, or to F2FS with ARKOS_ROOTFS=f2fs
 # Usage: sudo ./convert_rootfs.sh <image file path>
 #
-# Why ext4 (and not f2fs): neither dArkOS kernel (4.4.189, 5.10) has f2fs, only ext4 and btrfs
-# are built in. For a root partition that is mostly read, ext4 also avoids btrfs's costs on a
+# Why ext4 by default (and not f2fs): only the R36 Ultra's 7.3 kernel has f2fs built in; the
+# others (4.4.189, 5.10, 6.1, 7.1) have only ext4 and btrfs. An F2FS image therefore boots only
+# on the R36 Ultra with 7.3: the BOOT partition gets a rootfs.f2fs marker, and dtb_selector then
+# offers no other kernel. For a root partition that is mostly read, ext4 also avoids btrfs's costs on a
 # slow SD card and a weak CPU: no decompression (a compressed extent is up to 128KiB, so a 4KiB
 # random read decompresses the whole extent), no data checksumming, and a smaller metadata tree.
 #
@@ -15,6 +17,11 @@ set -euo pipefail
 
 IMG="${1:-}"
 [[ -n "$IMG" && -f "$IMG" ]] || { echo "Usage: $0 <image file path>"; exit 1; }
+TARGET="${ARKOS_ROOTFS:-ext4}"
+case "$TARGET" in
+  ext4|f2fs) ;;
+  *) echo "[ERROR] ARKOS_ROOTFS=$TARGET: use ext4 or f2fs"; exit 1 ;;
+esac
 
 WORK_BASE="${ARKOS_WORK_DIR:-$(pwd)}"
 STAGE="${WORK_BASE}/rootfs_stage"
@@ -46,7 +53,7 @@ fi
 
 LABEL="$(blkid -s LABEL -o value "$P2" || true)"
 UUID="$(blkid -s UUID -o value "$P2" || true)"
-echo "== p2 is btrfs (label: ${LABEL:-none}, UUID: ${UUID:-none}), converting to ext4 =="
+echo "== p2 is btrfs (label: ${LABEL:-none}, UUID: ${UUID:-none}), converting to $TARGET =="
 
 mkdir -p "$OLD_MNT" "$NEW_MNT" "$BOOT_MNT"
 btrfs device scan --forget 2>/dev/null || true
@@ -99,20 +106,30 @@ if [[ "$(printf '%s\n1.47\n' "$E2FS_VER" | sort -V | head -1)" == "1.47" ]]; the
   MKFS_FEATURES="$MKFS_FEATURES,^orphan_file"
 fi
 
-echo "== Formatting p2 as ext4 (e2fsprogs $E2FS_VER, -O $MKFS_FEATURES) =="
 wipefs -a -q "$P2"
-mkfs.ext4 -F -q -b 4096 -N 262144 -m 1 \
-  ${LABEL:+-L "$LABEL"} ${UUID:+-U "$UUID"} \
-  -O "$MKFS_FEATURES" \
-  -E lazy_itable_init=0,lazy_journal_init=0 \
-  "$P2"
+if [[ "$TARGET" == f2fs ]]; then
+  # same features as a card converted by hand: extended attributes (ACLs, capabilities) and
+  # checksummed inodes and superblock
+  echo "== Formatting p2 as F2FS =="
+  mkfs.f2fs -f -q ${LABEL:+-l "$LABEL"} ${UUID:+-U "$UUID"} \
+    -O extra_attr,inode_checksum,sb_checksum "$P2"
+else
+  echo "== Formatting p2 as ext4 (e2fsprogs $E2FS_VER, -O $MKFS_FEATURES) =="
+  mkfs.ext4 -F -q -b 4096 -N 262144 -m 1 \
+    ${LABEL:+-L "$LABEL"} ${UUID:+-U "$UUID"} \
+    -O "$MKFS_FEATURES" \
+    -E lazy_itable_init=0,lazy_journal_init=0 \
+    "$P2"
+fi
 
 echo "== Copying staging dir -> new p2 =="
-mount -t ext4 "$P2" "$NEW_MNT"
+mount -t "$TARGET" "$P2" "$NEW_MNT"
 rsync "${RSYNC_OPTS[@]}" "$STAGE/" "$NEW_MNT/"
 rm -rf "$STAGE"
 
-# Root line: ext4, noatime (reads never cause metadata writes), fsck pass 1.
+# Root line: ext4, noatime (reads never cause metadata writes), fsck pass 1. F2FS: discard, as
+# F2FS forgets space freed while it is off (the trims are throttled for the SD card by
+# /etc/tmpfiles.d/f2fs-discard.conf), and pass 0: the initramfs checks the root with fsck.f2fs.
 # Any other btrfs line (e.g. a subvolume mounted on /home) has no ext4 equivalent: fail loudly.
 fix_fstab() {
   local f="$1"
@@ -122,7 +139,10 @@ fix_fstab() {
     awk '$1 !~ /^#/ && $2 != "/" && $3 == "btrfs"' "$f"
     exit 1
   fi
-  awk 'BEGIN {OFS="\t"} $1 !~ /^#/ && $2 == "/" {$3 = "ext4"; $4 = "defaults,noatime,commit=30"; $5 = ($5 == "" ? 0 : $5); $6 = 1} {print}' \
+  local opts="defaults,noatime,commit=30" pass=1
+  [[ "$TARGET" == f2fs ]] && { opts="defaults,noatime,discard"; pass=0; }
+  awk -v fs="$TARGET" -v opts="$opts" -v pass="$pass" \
+    'BEGIN {OFS="\t"} $1 !~ /^#/ && $2 == "/" {$3 = fs; $4 = opts; $5 = ($5 == "" ? 0 : $5); $6 = pass} {print}' \
     "$f" > "$f.new"
   cat "$f.new" > "$f"
   rm -f "$f.new"
@@ -194,6 +214,11 @@ echo "== Updating fstab root entries =="
 fix_fstab "$NEW_MNT/etc/fstab"
 mount "$P1" "$BOOT_MNT"
 fix_fstab "$BOOT_MNT/fstab.exfat"
+if [[ "$TARGET" == f2fs ]]; then
+  echo "F2FS root: only the 7.3 kernel can mount it (read by dtb_selector)" > "$BOOT_MNT/rootfs.f2fs"
+else
+  rm -f "$BOOT_MNT/rootfs.f2fs"
+fi
 echo "== Adding fsck.ext4 to the initramfs =="
 add_fsck_ext4_to_initrd
 echo "== Slimming the initramfs =="
@@ -202,5 +227,9 @@ python3 -I "$(dirname "$(readlink -f "$0")")/slim_initrd.py" "$BOOT_MNT/uInitrd"
 umount "$BOOT_MNT"
 
 umount "$NEW_MNT"
-e2fsck -fy "$P2" > /dev/null || (( $? <= 1 )) || { echo "[ERROR] e2fsck failed on new p2"; exit 1; }
-echo "== p2 converted to ext4 =="
+if [[ "$TARGET" == f2fs ]]; then
+  fsck.f2fs -f "$P2" > /dev/null || { echo "[ERROR] fsck.f2fs failed on new p2"; exit 1; }
+else
+  e2fsck -fy "$P2" > /dev/null || (( $? <= 1 )) || { echo "[ERROR] e2fsck failed on new p2"; exit 1; }
+fi
+echo "== p2 converted to $TARGET =="

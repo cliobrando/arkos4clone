@@ -434,6 +434,11 @@ fi
 echo "== 系统目录权限: / /etc /usr 归 root, 无组/其他写权限 =="
 fix_system_permissions
 
+# The root's filesystem checker in the initramfs: fsck.f2fs is only on the root once the
+# --upgrade build installed f2fs-tools, after the initramfs was slimmed
+echo "== initramfs: 根分区 fsck =="
+safe sudo python3 -I "$(dirname "$(readlink -f "$0")")/slim_initrd.py" "$MOUNT_DIR/boot/uInitrd" --rootfs "$MOUNT_DIR/root"
+
 # the base image's bind mount carries a device timeout, which systemd ignores
 # for bind mounts and warns about at every boot
 for f in "$MOUNT_DIR/root/etc/fstab" "$MOUNT_DIR/boot/fstab.exfat"; do

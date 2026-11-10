@@ -434,7 +434,7 @@ step_convert_rootfs() {
     log_info "步骤 2/8: ARKOS_ROOTFS=keep，保持 p2 文件系统不变"
     return
   fi
-  log_info "步骤 2/8: 将 p2 转换为 ext4 (如为 btrfs)..."
+  log_info "步骤 2/8: 将 p2 转换为 ${ARKOS_ROOTFS:-ext4} (如为 btrfs)..."
   if "$SCRIPT_DIR/scripts/convert_rootfs.sh" "$img"; then
     log_ok "p2 文件系统转换完成"
   else
@@ -553,6 +553,19 @@ step_verify_fs() {
       fi
       ;;
 
+    f2fs)
+      log_info "校验 p2 文件系统 (fsck.f2fs, $fstype)..."
+      if fsck.f2fs -f "${loop}p2"; then
+        rc=0
+      else
+        rc=$?
+      fi
+      if (( rc != 0 )); then
+        log_error "p2 f2fs 文件系统存在错误 (fsck.f2fs rc=$rc)"
+        return 1
+      fi
+      ;;
+
     btrfs)
       log_info "校验 p2 文件系统 (btrfs check, $fstype)..."
       if btrfs check --readonly "${loop}p2"; then
@@ -649,6 +662,7 @@ ArkOS4Clone 一键构建脚本
   ARKOS_MNT       挂载路径 (默认: <工作目录>/mnt)
   ARKOS_WORK_DIR  临时工作目录 (默认: <工作目录>)
   ARKOS_ROOTFS    p2 文件系统: ext4 把 btrfs 的 p2 转换为 ext4 (默认)，
+                  f2fs 转换为 F2FS (仅 R36 Ultra 的 7.3 内核可挂载)，
                   keep 保持不变
 
 示例:

@@ -2,11 +2,15 @@
 # Build a complete dArkOS4Clone/ArkOS4Clone image with build_image.sh inside
 # a Debian trixie container (same steps as the GitHub Actions job).
 #
-#   docker/build-image.sh [--upgrade] [source image]
+#   docker/build-image.sh [--upgrade] [--ext4] [source image]
 #
 #   --upgrade      upgrade the base image's Debian packages to the latest
 #                  point release of its release before arkos4clone's files
 #                  are injected (scripts/upgrade_rootfs.sh)
+#   --ext4         ext4 root instead of the default F2FS. An F2FS root boots
+#                  only on the R36 Ultra with the 7.3 kernel; other consoles
+#                  need an ext4 image. (build_image.sh alone, as in CI,
+#                  defaults to ext4.)
 #   source image   default: dArkOS-download/dArkOS_G350_trixie_09022026.img
 #
 # The container runs --privileged with the host's /dev, because
@@ -18,7 +22,14 @@ set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 UPGRADE=0
-[ "${1:-}" = "--upgrade" ] && { UPGRADE=1; shift; }
+ROOTFS=f2fs
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --upgrade) UPGRADE=1; shift ;;
+    --ext4) ROOTFS=ext4; shift ;;
+    *) break ;;
+  esac
+done
 SRC="$(realpath "${1:-$REPO/dArkOS-download/dArkOS_G350_trixie_09022026.img}")"
 WORK="$REPO/build-work"
 IMAGE=arkos4clone-image-build
@@ -35,7 +46,7 @@ TMP="$REPO/es-build/image-tmp"   # not in $WORK: build_image.sh empties that
 mkdir -p "$TMP"; chmod 1777 "$TMP"
 
 docker run --rm --privileged -v /dev:/dev -v "$REPO:$REPO" -v "$TMP:/tmp" -w "$REPO" \
-  -e ARKOS_UPGRADE_DEBIAN="$UPGRADE" -e SRC="$SRC" -e WORK="$WORK" -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
+  -e ARKOS_UPGRADE_DEBIAN="$UPGRADE" -e ARKOS_ROOTFS="$ROOTFS" -e SRC="$SRC" -e WORK="$WORK" -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
   "$IMAGE" bash -euc '
     BINFMT=/proc/sys/fs/binfmt_misc
     registered=""
