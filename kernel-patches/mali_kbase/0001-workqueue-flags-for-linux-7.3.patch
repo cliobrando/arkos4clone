@@ -1,0 +1,78 @@
+diff --git a/backend/gpu/mali_kbase_jm_hw.c b/backend/gpu/mali_kbase_jm_hw.c
+index a4f1aed..fdc97e2 100644
+--- a/backend/gpu/mali_kbase_jm_hw.c
++++ b/backend/gpu/mali_kbase_jm_hw.c
+@@ -1255,7 +1255,7 @@ KBASE_EXPORT_TEST_API(kbase_reset_gpu_wait);
+ 
+ int kbase_reset_gpu_init(struct kbase_device *kbdev)
+ {
+-	kbdev->hwaccess.backend.reset_workq = alloc_workqueue("Mali reset workqueue", 0, 1);
++	kbdev->hwaccess.backend.reset_workq = alloc_workqueue("Mali reset workqueue", WQ_PERCPU, 1);
+ 	if (kbdev->hwaccess.backend.reset_workq == NULL)
+ 		return -ENOMEM;
+ 
+diff --git a/csf/mali_kbase_csf_kcpu.c b/csf/mali_kbase_csf_kcpu.c
+index 86e6452..f92efdc 100644
+--- a/csf/mali_kbase_csf_kcpu.c
++++ b/csf/mali_kbase_csf_kcpu.c
+@@ -2753,7 +2753,7 @@ out:
+ int kbase_csf_kcpu_queue_context_init(struct kbase_context *kctx)
+ {
+ 	kctx->csf.kcpu_queues.kcpu_wq =
+-		alloc_workqueue("mali_kcpu_wq_%i_%i", 0, 0, kctx->tgid, kctx->id);
++		alloc_workqueue("mali_kcpu_wq_%i_%i", WQ_PERCPU, 0, kctx->tgid, kctx->id);
+ 	if (kctx->csf.kcpu_queues.kcpu_wq == NULL) {
+ 		dev_err(kctx->kbdev->dev,
+ 			"Failed to initialize KCPU queue high-priority workqueue");
+diff --git a/csf/mali_kbase_csf_reset_gpu.c b/csf/mali_kbase_csf_reset_gpu.c
+index ae90a2b..e13b62d 100644
+--- a/csf/mali_kbase_csf_reset_gpu.c
++++ b/csf/mali_kbase_csf_reset_gpu.c
+@@ -627,7 +627,7 @@ KBASE_EXPORT_TEST_API(kbase_reset_gpu_wait);
+ 
+ int kbase_reset_gpu_init(struct kbase_device *kbdev)
+ {
+-	kbdev->csf.reset.workq = alloc_workqueue("Mali reset workqueue", 0, 1);
++	kbdev->csf.reset.workq = alloc_workqueue("Mali reset workqueue", WQ_PERCPU, 1);
+ 	if (kbdev->csf.reset.workq == NULL)
+ 		return -ENOMEM;
+ 
+diff --git a/mali_kbase_debug_job_fault.c b/mali_kbase_debug_job_fault.c
+index 679dd75..bca3c47 100644
+--- a/mali_kbase_debug_job_fault.c
++++ b/mali_kbase_debug_job_fault.c
+@@ -472,7 +472,7 @@ int kbase_debug_job_fault_dev_init(struct kbase_device *kbdev)
+ 	spin_lock_init(&kbdev->job_fault_event_lock);
+ 
+ 	kbdev->job_fault_resume_workq =
+-		alloc_workqueue("kbase_job_fault_resume_work_queue", WQ_MEM_RECLAIM, 1);
++		alloc_workqueue("kbase_jf_resume_wq", WQ_PERCPU | WQ_MEM_RECLAIM, 1);
+ 	if (!kbdev->job_fault_resume_workq)
+ 		return -ENOMEM;
+ 
+diff --git a/mali_kbase_event.c b/mali_kbase_event.c
+index 3c59b20..6052627 100644
+--- a/mali_kbase_event.c
++++ b/mali_kbase_event.c
+@@ -226,7 +226,7 @@ int kbase_event_init(struct kbase_context *kctx)
+ 	INIT_LIST_HEAD(&kctx->event_list);
+ 	INIT_LIST_HEAD(&kctx->event_coalesce_list);
+ 	mutex_init(&kctx->event_mutex);
+-	kctx->event_workq = alloc_workqueue("kbase_event", WQ_MEM_RECLAIM, 1);
++	kctx->event_workq = alloc_workqueue("kbase_event", WQ_PERCPU | WQ_MEM_RECLAIM, 1);
+ 
+ 	if (kctx->event_workq == NULL)
+ 		return -EINVAL;
+diff --git a/mmu/backend/mali_kbase_mmu_jm.c b/mmu/backend/mali_kbase_mmu_jm.c
+index caa6183..d394166 100644
+--- a/mmu/backend/mali_kbase_mmu_jm.c
++++ b/mmu/backend/mali_kbase_mmu_jm.c
+@@ -407,7 +407,7 @@ int kbase_mmu_as_init(struct kbase_device *kbdev, unsigned int i)
+ 	kbdev->as[i].bf_data.addr = 0ULL;
+ 	kbdev->as[i].pf_data.addr = 0ULL;
+ 
+-	kbdev->as[i].pf_wq = alloc_workqueue("mali_mmu%u", 0, 0, i);
++	kbdev->as[i].pf_wq = alloc_workqueue("mali_mmu%u", WQ_PERCPU, 0, i);
+ 	if (!kbdev->as[i].pf_wq)
+ 		return -ENOMEM;
+ 
