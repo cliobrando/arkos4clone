@@ -216,6 +216,26 @@ def f2fs_auto_fix(entries):
     functions.data = text.replace(anchor, patch + anchor).encode()
 
 
+def f2fs_quiet_check(entries):
+    """Like the ext4 shortcut in slim(): a root that fsck.f2fs -a finds clean
+    is not checked again, and its report goes to the log only instead of
+    filling the console at every boot. Anything else (forced check, errors)
+    still goes through the normal, visible path."""
+    functions = next(e for e in entries if e.name == "scripts/functions")
+    text = functions.data.decode()
+    shortcut = ('\tif [ -z "$force" ] && [ "$TYPE" = f2fs ] &&\n'
+                '\t   fsck.f2fs -a "$DEV" >"$FSCK_LOGFILE" 2>&1; then\n'
+                '\t\ttrue >"$FSCK_STAMPFILE"\n'
+                '\t\treturn 0\n'
+                '\tfi\n\n')
+    if shortcut in text:
+        return
+    anchor = '\tif [ "${quiet}" = n ]\n\tthen\n\t\tlog_begin_msg "Will now check $NAME file system"\n'
+    if text.count(anchor) != 1:
+        sys.exit("scripts/functions: fsck call not found")
+    functions.data = text.replace(anchor, shortcut + anchor).encode()
+
+
 def is_slim(entries):
     local = next((e for e in entries if e.name == "scripts/local"), None)
     return local is not None and b"\t\t\tsleep 0.02\n" in local.data
@@ -351,6 +371,7 @@ def main():
         sys.exit("no fsck.ext4 in the initramfs (use --rootfs)")
     slimmed = entries if is_slim(entries) else slim(entries)
     f2fs_auto_fix(slimmed)
+    f2fs_quiet_check(slimmed)
     packed = write_cpio(slimmed)
     payload = gzip.compress(packed, 9, mtime=0)
     if 64 + len(payload) > MAX_SIZE:
