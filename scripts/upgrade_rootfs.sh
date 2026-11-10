@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Upgrade the Debian packages of a mounted arm64 rootfs to the latest point
-# release of its own Debian release (apt-get upgrade: no dist-upgrade, no new
-# or removed packages). Runs apt inside a chroot through qemu-aarch64 (the
+# release of its own Debian release (apt-get upgrade: no dist-upgrade, no
+# removed packages), then install the few packages arkos4clone adds
+# (EXTRA_PACKAGES). Runs apt inside a chroot through qemu-aarch64 (the
 # caller must have binfmt_misc set up for aarch64).
 #
 # Protected (apt-mark hold) so dArkOS's own builds are not replaced:
@@ -14,6 +15,8 @@ set -euo pipefail
 
 ROOT="${1:?usage: upgrade_rootfs.sh <rootfs> [report]}"
 REPORT="${2:-/dev/stdout}"
+# f2fs-tools: fsck.f2fs and mkfs.f2fs, for a root partition moved to F2FS
+EXTRA_PACKAGES="f2fs-tools"
 [ -x "$ROOT/usr/bin/apt-get" ] || { echo "no apt-get in $ROOT" >&2; exit 1; }
 
 mounted=()
@@ -53,6 +56,9 @@ in_root() { chroot "$ROOT" /usr/bin/env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin DE
   echo "== to upgrade:"
   in_root apt-get -s upgrade | awk '/^Inst / {print "   " $2, $3, $4}'
   in_root apt-get -y -q -o Dpkg::Options::=--force-confold -o Dpkg::Options::=--force-confdef upgrade
+  echo "== installing: $EXTRA_PACKAGES"
+  # shellcheck disable=SC2086
+  in_root apt-get -y -q --no-install-recommends -o Dpkg::Options::=--force-confold install $EXTRA_PACKAGES
   in_root apt-get clean
 
   # holds were only for this upgrade
