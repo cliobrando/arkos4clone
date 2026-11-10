@@ -394,7 +394,19 @@ else
   safe sudo sed -i '/imageshift\.sh/d' "$MOUNT_DIR/root/var/spool/cron/crontabs/root"
   safe sudo rm -f "$MOUNT_DIR/root/home/ark/.config/imageshift.sh"
   safe sudo chown -R $CHOWN_USER "$MOUNT_DIR/root/lib/systemd/system/mpv.service"
-  safe sudo chmod 777 "$MOUNT_DIR/root/lib/systemd/system/mpv.service"
+
+  # sync_rootfs gives every file mode 777; systemd warns about world-writable
+  # and executable unit files, and any user could change what root runs
+  echo "== systemd unit 权限 644 =="
+  safe sudo find "$MOUNT_DIR/root/etc/systemd" "$MOUNT_DIR/root/lib/systemd/system" -type f \
+    \( -name '*.service' -o -name '*.timer' -o -name '*.socket' -o -name '*.mount' \
+       -o -name '*.target' -o -name '*.path' -o -name '*.conf' \) -exec chmod 644 {} +
+
+  # the base image's bind mount carries a device timeout, which systemd ignores
+  # for bind mounts and warns about at every boot
+  for f in "$MOUNT_DIR/root/etc/fstab" "$MOUNT_DIR/boot/fstab.exfat"; do
+    [[ -f "$f" ]] && safe sudo sed -i -E 's#^(/roms/tools[[:space:]]+/opt/system/Tools[[:space:]]+none[[:space:]]+[^[:space:]]*),x-systemd\.device-timeout=[0-9]+#\1#' "$f"
+  done
 
   echo "== 设置 ArkOS plymouth 标题 =="
   safe sudo sed -i "/title\=/c\title\=ArkOS4Clone ($UPDATE_DATE)($MODDER)" "$MOUNT_DIR/root/usr/share/plymouth/themes/text.plymouth"
