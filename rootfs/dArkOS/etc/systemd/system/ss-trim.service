@@ -1,0 +1,10 @@
+[Unit]
+Description=Drain the trim queue while the ES screensaver runs
+# started and stopped by ES (/usr/bin/emulationstation/scripts/screensaver-*)
+
+[Service]
+Type=exec
+ExecStart=/usr/local/sbin/ss-trim run
+ExecStopPost=/usr/local/sbin/ss-trim off
+Nice=19
+IOSchedulingClass=idle

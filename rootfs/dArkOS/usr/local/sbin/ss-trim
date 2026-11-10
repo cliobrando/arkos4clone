@@ -1,0 +1,51 @@
+#!/bin/sh
+# Trim the root filesystem while the ES screensaver runs. ss-trim.service runs
+# "run" when the screensaver starts and "off" when it stops (ExecStopPost).
+#
+# F2FS: the root is mounted with discard, since F2FS forgets space freed while
+# discard is off (a later fstrim does not find it). F2FS queues the trims and
+# a kernel thread sends them; /etc/tmpfiles.d/f2fs-discard.conf throttles that
+# thread to one 2 MiB trim a minute (the SD card times out on small trims:
+# "Card stuck being busy"). "run" lifts the throttle so the queue drains while
+# nobody plays, "off" puts it back.
+# ext4: "run" is a plain fstrim.
+DELAY=60     # the screensaver must stay on this long first
+THROTTLE=/etc/tmpfiles.d/f2fs-discard.conf
+
+dev=$(findmnt -no SOURCE /)
+fs=$(findmnt -no FSTYPE /)
+sysfs=/sys/fs/f2fs/${dev##*/}
+log() { logger -t ss-trim "$*"; }
+pending() { cat "$sysfs/pending_discard"; }
+
+case "$1" in
+run)
+  sleep $DELAY
+  if [ "$fs" != f2fs ]; then
+    log "$(/usr/sbin/fstrim -v / 2>&1)"
+    exit 0
+  fi
+  findmnt -no OPTIONS / | tr , '\n' | grep -qx discard || { log "/ is mounted without discard"; exit 0; }
+  echo 64 > "$sysfs/max_discard_request"
+  echo 0 > "$sysfs/discard_io_aware"      # the screensaver video keeps reading
+  echo 50 > "$sysfs/min_discard_issue_time"
+  echo 500 > "$sysfs/mid_discard_issue_time"
+  echo 1000 > "$sysfs/max_discard_issue_time"
+  start=$(pending)
+  # queue free space the queue may have missed, and wake the sender
+  /usr/sbin/fstrim / 2>/dev/null
+  # ranges under 2 MiB stay queued: stop once the queue has not shrunk for 30 s
+  last=-1; still=0
+  while n=$(pending); [ "$n" -gt 0 ] && [ $still -lt 6 ]; do
+    if [ "$n" -eq "$last" ]; then still=$((still + 1)); else still=0; fi
+    last=$n; sleep 5
+  done
+  log "queue drained: $start ranges queued at start, $n left (under 2 MiB)"
+  ;;
+off)
+  [ "$fs" = f2fs ] && systemd-tmpfiles --create "$THROTTLE"
+  exit 0
+  ;;
+*)
+  echo "usage: $0 run|off" >&2; exit 2 ;;
+esac
