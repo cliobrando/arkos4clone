@@ -56,5 +56,11 @@ echo simple_ondemand > /sys/devices/platform/${gpu}.gpu/devfreq/${gpu}.gpu/gover
 echo schedutil > /sys/devices/system/cpu/cpufreq/policy0/scaling_governor 2>/dev/null ||
   echo ondemand > /sys/devices/system/cpu/cpufreq/policy0/scaling_governor
 # tunables reset when the governor changes: see /etc/tmpfiles.d/schedutil.conf
-echo 2000 > /sys/devices/system/cpu/cpufreq/policy0/schedutil/rate_limit_us 2>/dev/null
-echo dmc_ondemand > /sys/devices/platform/dmc/devfreq/dmc/governor
+# (per policy on the BSP kernels, one global directory on mainline)
+for f in /sys/devices/system/cpu/cpufreq/policy0/schedutil/rate_limit_us \
+         /sys/devices/system/cpu/cpufreq/schedutil/rate_limit_us; do
+  [ -e "$f" ] && echo 2000 > "$f"
+done
+# the BSP kernels' DDR governor is dmc_ondemand; mainline has simple_ondemand
+echo dmc_ondemand > /sys/devices/platform/dmc/devfreq/dmc/governor 2>/dev/null ||
+  echo simple_ondemand > /sys/devices/platform/dmc/devfreq/dmc/governor

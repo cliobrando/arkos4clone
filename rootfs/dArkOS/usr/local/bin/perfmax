@@ -117,12 +117,23 @@ elif [[ "$1" != "ondemand" ]]; then
 else
   echo simple_"$1" > /sys/devices/platform/${gpu}.gpu/devfreq/${gpu}.gpu/governor
   echo "$1" > /sys/devices/system/cpu/cpufreq/policy0/scaling_governor
-  echo dmc_"$1" > /sys/devices/platform/dmc/devfreq/dmc/governor
+  echo dmc_"$1" > /sys/devices/platform/dmc/devfreq/dmc/governor 2>/dev/null ||
+    echo simple_"$1" > /sys/devices/platform/dmc/devfreq/dmc/governor
   if [ "$(cat /sys/devices/system/cpu/cpufreq/policy0/scaling_governor)" == "ondemand" ]; then
     echo 85 | sudo tee -a /sys/devices/system/cpu/cpu*/cpufreq/ondemand/up_threshold > /dev/null &
     echo 150 | sudo tee -a /sys/devices/system/cpu/cpu*/cpufreq/ondemand/sampling_down_factor > /dev/null &
   fi
 fi
+
+# 7.x has GPU speeds below 560 MHz again; simple_ondemand drops to them in
+# games and costs about a fifth of the frame rate (Quake 3 36 -> 29 fps).
+# Run games at the GPU MAX FREQ limit instead.
+case "$(uname -r)" in
+7.*)
+  g=/sys/devices/platform/${gpu}.gpu/devfreq/${gpu}.gpu/governor
+  [ "$(cat "$g")" = simple_ondemand ] && echo performance > "$g"
+  ;;
+esac
 
 if [ -f "/usr/local/bin/quickmode.sh" ]; then
    sudo rm -f /dev/shm/governor_settings.state
