@@ -29,7 +29,12 @@ mkdir -p "$WORK"
 
 docker build -q -t "$IMAGE" "$REPO/docker/image-build" >/dev/null
 
-docker run --rm --privileged -v /dev:/dev -v "$REPO:$REPO" -w "$REPO" \
+# /tmp on the work disk: packing roms/ needs over 2 GB, more than the container
+# layer may have free on the system disk
+TMP="$REPO/es-build/image-tmp"   # not in $WORK: build_image.sh empties that
+mkdir -p "$TMP"; chmod 1777 "$TMP"
+
+docker run --rm --privileged -v /dev:/dev -v "$REPO:$REPO" -v "$TMP:/tmp" -w "$REPO" \
   -e ARKOS_UPGRADE_DEBIAN="$UPGRADE" -e SRC="$SRC" -e WORK="$WORK" -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
   "$IMAGE" bash -euc '
     BINFMT=/proc/sys/fs/binfmt_misc
@@ -55,5 +60,6 @@ docker run --rm --privileged -v /dev:/dev -v "$REPO:$REPO" -w "$REPO" \
     chown "$HOST_UID:$HOST_GID" ./*4Clone-*.img.xz* 2>/dev/null || true
   '
 
+sudo -n rm -rf "$TMP" 2>/dev/null || rm -rf "$TMP" 2>/dev/null || true
 ls -lh "$REPO"/*4Clone-*.img.xz* 2>/dev/null || true
 [ "$UPGRADE" = 1 ] && echo "Debian upgrade report: $WORK/debian-upgrade-report.txt"
