@@ -1,0 +1,27 @@
+diff --git a/backend/gpu/mali_kbase_devfreq.c b/backend/gpu/mali_kbase_devfreq.c
+--- a/backend/gpu/mali_kbase_devfreq.c
++++ b/backend/gpu/mali_kbase_devfreq.c
+@@ -165,7 +165,10 @@
+ 	for (i = 0; i < kbdev->nr_clocks; i++) {
+ 		if (kbdev->regulators[i] && kbdev->current_voltages[i] != volts[i] &&
+ 		    kbdev->current_freqs[i] < freqs[i]) {
+-			err = regulator_set_voltage(kbdev->regulators[i], volts[i], volts[i]);
++			/* at least the OPP voltage: the rail can be shared (vdd_logic
++			 * with the DMC on PX30), an exact request fails when another
++			 * consumer holds it higher */
++			err = regulator_set_voltage(kbdev->regulators[i], volts[i], INT_MAX);
+ 			if (!err) {
+ 				kbdev->current_voltages[i] = volts[i];
+ 			} else {
+@@ -199,7 +202,10 @@
+ 	for (i = 0; i < kbdev->nr_clocks; i++) {
+ 		if (kbdev->regulators[i] && kbdev->current_voltages[i] != volts[i] &&
+ 		    original_freqs[i] > freqs[i]) {
+-			err = regulator_set_voltage(kbdev->regulators[i], volts[i], volts[i]);
++			/* at least the OPP voltage: the rail can be shared (vdd_logic
++			 * with the DMC on PX30), an exact request fails when another
++			 * consumer holds it higher */
++			err = regulator_set_voltage(kbdev->regulators[i], volts[i], INT_MAX);
+ 			if (!err) {
+ 				kbdev->current_voltages[i] = volts[i];
+ 			} else {
