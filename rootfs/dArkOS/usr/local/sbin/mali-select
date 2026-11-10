@@ -40,8 +40,11 @@ for dir in /usr/lib/aarch64-linux-gnu /usr/lib/arm-linux-gnueabihf; do
         rm -f "$dir/libMaliVulkan.so.1"
     fi
 
-    # ldconfig (run by apt) points these at Debian's own libraries
-    link "$dir/libGLESv1_CM.so.1" libMali.so
-    link "$dir/libwayland-egl.so.1" libMali.so
+    # ldconfig (run by apt) points these at Debian's own libraries, and a
+    # Mesa or glvnd package update can replace the rest
+    for name in libGLESv1_CM.so.1 libwayland-egl.so.1 libEGL.so.1 libGLESv2.so.2 \
+                libgbm.so.1 libEGL.so libGLESv2.so libGLESv1_CM.so libgbm.so libmali.so.1; do
+        link "$dir/$name" libMali.so
+    done
 done
 exit 0
