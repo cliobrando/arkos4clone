@@ -9,7 +9,11 @@ drivers built into every kernel the image boots, so none of that runs for a
 reason: wait_for_udev does nothing without udevadm, and the stock scripts
 wait for the root device on their own.
 
---rootfs adds e2fsck from that root when the initramfs has no fsck.ext4.
+--rootfs adds e2fsck from that root when the initramfs has no fsck.ext4,
+and fsck.f2fs when the root has it: the initramfs checks the root with
+fsck -t <type>, and without the checker the fsck wrapper prints "not found"
+on the console and the root goes unchecked. An initramfs that is already
+slim is only given the missing checkers.
 Output stays one gzip member in a legacy uImage: the Rockchip 4.4 kernel
 cannot unpack zstd and stops after the first compressed member. Works on
 the cpio stream, so it needs neither root nor an arm64 chroot. Aborts if a
@@ -155,25 +159,25 @@ def needed(elf):
     return out
 
 
-def add_e2fsck(entries, root):
-    """Add e2fsck and any of its libraries the initramfs does not have."""
+def add_binary(entries, root, name, links=()):
+    """Add a binary from root, symlinks to it, and any of its libraries the
+    initramfs does not have."""
     have = {e.name for e in entries}
-    if "usr/sbin/fsck.ext4" in have:
-        return
     def regular(name):
-        path = os.path.join(root, name)
+        path = os.path.realpath(os.path.join(root, name))
         e = Entry()
         e.name, e.mode, e.mtime, e.group, e.rdev = name, 0o100755, 0, None, (0, 0)
         with open(path, "rb") as f:
             e.data = f.read()
         return e
-    binary = regular("usr/sbin/e2fsck")
+    binary = regular(name)
     entries.append(binary)
-    link = Entry()
-    link.name, link.mode, link.mtime, link.group, link.rdev = (
-        "usr/sbin/fsck.ext4", 0o120777, 0, None, (0, 0))
-    link.data = b"e2fsck"
-    entries.append(link)
+    for link_name in links:
+        link = Entry()
+        link.name, link.mode, link.mtime, link.group, link.rdev = (
+            link_name, 0o120777, 0, None, (0, 0))
+        link.data = os.path.basename(name).encode()
+        entries.append(link)
     todo = list(needed(binary.data))
     while todo:
         lib = todo.pop()
@@ -183,6 +187,38 @@ def add_e2fsck(entries, root):
         e = regular(LIBDIR + lib)
         entries.append(e)
         todo += needed(e.data) or []
+
+
+def add_checkers(entries, root):
+    """fsck.ext4 (e2fsck) if missing; fsck.f2fs if the root has it."""
+    have = {e.name for e in entries}
+    if "usr/sbin/fsck.ext4" not in have:
+        add_binary(entries, root, "usr/sbin/e2fsck", ["usr/sbin/fsck.ext4"])
+    if ("usr/sbin/fsck.f2fs" not in have
+            and os.path.exists(os.path.join(root, "usr/sbin/fsck.f2fs"))):
+        add_binary(entries, root, "usr/sbin/fsck.f2fs")
+
+
+def f2fs_auto_fix(entries):
+    """fsck.repair=yes makes the initramfs run fsck -y. fsck.f2fs -y checks
+    the whole filesystem every boot (90 s on the SD card); -a checks only
+    when the kernel marked it as needing a check."""
+    functions = next(e for e in entries if e.name == "scripts/functions")
+    text = functions.data.decode()
+    patch = ('\tif [ "$TYPE" = f2fs ]; then\n'
+             '\t\tfix="-a"\n'
+             '\tfi\n\n')
+    if patch in text:
+        return
+    anchor = '\tspinner=""\n'
+    if text.count(anchor) != 1:
+        sys.exit("scripts/functions: fsck options not found")
+    functions.data = text.replace(anchor, patch + anchor).encode()
+
+
+def is_slim(entries):
+    local = next((e for e in entries if e.name == "scripts/local"), None)
+    return local is not None and b"\t\t\tsleep 0.02\n" in local.data
 
 
 def strip_udev_calls(text):
@@ -310,10 +346,11 @@ def main():
 
     entries = read_cpio(cpio)
     if args.rootfs:
-        add_e2fsck(entries, args.rootfs)
+        add_checkers(entries, args.rootfs)
     if "usr/sbin/fsck.ext4" not in {e.name for e in entries}:
         sys.exit("no fsck.ext4 in the initramfs (use --rootfs)")
-    slimmed = slim(entries)
+    slimmed = entries if is_slim(entries) else slim(entries)
+    f2fs_auto_fix(slimmed)
     packed = write_cpio(slimmed)
     payload = gzip.compress(packed, 9, mtime=0)
     if 64 + len(payload) > MAX_SIZE:
