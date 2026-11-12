@@ -1,0 +1,179 @@
+diff --git a/src/burn/drv/pst90s/d_raiden2.cpp b/src/burn/drv/pst90s/d_raiden2.cpp
+index e01dc5e..1f9d612 100644
+--- a/src/burn/drv/pst90s/d_raiden2.cpp
++++ b/src/burn/drv/pst90s/d_raiden2.cpp
+@@ -3378,26 +3378,28 @@ static void draw_single_sprite(INT32 code, INT32 color, INT32 sx, INT32 sy, INT3
+ 		UINT32 *pal = DrvPalette + color;
+ 		UINT8 *gfx = DrvGfxROM2 + (code * 0x100);
+ 		UINT8 *alpha = DrvAlphaTable + color;
+-		UINT32 *dst = bitmap32 + sy * nScreenWidth;
+-
+-		for (INT32 y = 0; y < 16; y++, sy++) {
+-			if (sy >= 0 && sy < nScreenHeight) {
+-				for (INT32 x = 0; x < 16; x++, sx++) {
+-					if (sx < 0 || sx >= nScreenWidth) continue;
+-
+-					INT32 pxl = gfx[(y*16+x)^flip];
+-					if (pxl != 0x0f)
+-					{
+-						if (alpha[pxl]) {
+-							dst[sx] = alpha_blend(dst[sx], pal[pxl]);
+-						} else {
+-							dst[sx] = pal[pxl];
+-						}
+-					}	
++
++		// clip once per sprite instead of testing every pixel: most sprites
++		// are fully on screen
++		INT32 x0 = (sx < 0) ? -sx : 0;
++		INT32 x1 = (sx + 16 > nScreenWidth) ? nScreenWidth - sx : 16;
++		INT32 y0 = (sy < 0) ? -sy : 0;
++		INT32 y1 = (sy + 16 > nScreenHeight) ? nScreenHeight - sy : 16;
++
++		for (INT32 y = y0; y < y1; y++) {
++			UINT32 *dst = bitmap32 + (sy + y) * nScreenWidth + sx;
++
++			for (INT32 x = x0; x < x1; x++) {
++				INT32 pxl = gfx[(y*16+x)^flip];
++				if (pxl != 0x0f)
++				{
++					if (alpha[pxl]) {
++						dst[x] = alpha_blend(dst[x], pal[pxl]);
++					} else {
++						dst[x] = pal[pxl];
++					}
+ 				}
+-				sx -= 16;
+ 			}
+-			dst += nScreenWidth;
+ 		}
+ 	}
+ }
+@@ -3470,6 +3472,27 @@ static void draw_sprites(INT32 priority)
+ 	}
+ }
+ 
++// Copy the finished 32-bit frame to the output. When the frontend's format
++// is 0x00RRGGBB, the colour conversion is just a mask: copy directly instead
++// of calling BurnHighCol and PutPix for every pixel (this loop was the
++// single largest cost of the driver on a Cortex-A35).
++static void bitmap32_to_output()
++{
++	INT32 n = nScreenWidth * nScreenHeight;
++
++	if (nBurnBpp == 4 && BurnHighCol(0x12, 0x34, 0x56, 0) == 0x123456) {
++		UINT32 *dst = (UINT32*)pBurnDraw;
++		for (INT32 i = 0; i < n; i++) {
++			dst[i] = bitmap32[i] & 0xffffff;
++		}
++		return;
++	}
++
++	for (INT32 i = 0; i < n; i++) {
++		PutPix(pBurnDraw + (i * nBurnBpp), BurnHighCol(bitmap32[i]>>16, (bitmap32[i]>>8)&0xff, bitmap32[i]&0xff, 0));
++	}
++}
++
+ static INT32 DrvDraw()
+ {
+ 	if (DrvRecalc) {
+@@ -3480,10 +3503,8 @@ static INT32 DrvDraw()
+ 	}
+ 
+ //	BurnTransferClear();
+-	for (INT32 i = 0; i < nScreenWidth * nScreenHeight; i++) {
+-		pTransDraw[i] = 0x0800;
+-		bitmap32[i] = 0; // black
+-	}
++	// the layers and sprites draw into bitmap32 only; pTransDraw is unused here
++	memset(bitmap32, 0, nScreenWidth * nScreenHeight * sizeof(UINT32)); // black
+ 
+ 	if (nBurnLayer & 1) draw_sprites(0);
+ 	if (nSpriteEnable & 1) if (~layer_enable & 1) draw_layer(DrvBgRAM, 0, 0x400, bg_bank);
+@@ -3494,9 +3515,7 @@ static INT32 DrvDraw()
+ 	if (nBurnLayer & 8) draw_sprites(3);
+ 	if (nSpriteEnable & 8) if (~layer_enable & 8) draw_txt_layer();
+ 
+-	for (INT32 i = 0; i < nScreenWidth * nScreenHeight; i++) {
+-		PutPix(pBurnDraw + (i * nBurnBpp), BurnHighCol(bitmap32[i]>>16, (bitmap32[i]>>8)&0xff, bitmap32[i]&0xff, 0));
+-	}
++	bitmap32_to_output();
+ 	return 0;
+ }
+ 
+@@ -3514,10 +3533,8 @@ static INT32 ZeroteamDraw() // sprite priorities different
+ 	}
+ 
+ //	BurnTransferClear();
+-	for (INT32 i = 0; i < nScreenWidth * nScreenHeight; i++) {
+-		pTransDraw[i] = 0x0800;
+-		bitmap32[i] = 0; // black
+-	}
++	// the layers and sprites draw into bitmap32 only; pTransDraw is unused here
++	memset(bitmap32, 0, nScreenWidth * nScreenHeight * sizeof(UINT32)); // black
+ 
+ 	if (nSpriteEnable & 1) if (~layer_enable & 1) draw_layer(DrvBgRAM, 0, 0x400, bg_bank);
+ 	if (nBurnLayer & 1) draw_sprites(0);
+@@ -3528,9 +3545,7 @@ static INT32 ZeroteamDraw() // sprite priorities different
+ 	if (nSpriteEnable & 8) if (~layer_enable & 8) draw_txt_layer();
+ 	if (nBurnLayer & 8) draw_sprites(3);
+ 
+-	for (INT32 i = 0; i < nScreenWidth * nScreenHeight; i++) {
+-		PutPix(pBurnDraw + (i * nBurnBpp), BurnHighCol(bitmap32[i]>>16, (bitmap32[i]>>8)&0xff, bitmap32[i]&0xff, 0));
+-	}
++	bitmap32_to_output();
+ 
+ 	return 0;
+ }
+diff --git a/src/cpu/z80/z80.cpp b/src/cpu/z80/z80.cpp
+index 3e5e45e..c4c1461 100644
+--- a/src/cpu/z80/z80.cpp
++++ b/src/cpu/z80/z80.cpp
+@@ -919,7 +919,7 @@ Z80_INLINE void OUT(UINT16 port, UINT8 value)
+ Z80_INLINE UINT8 RM(UINT16 addr)
+ {
+ 	UINT8 res = Z80ProgramRead(addr);
+-	store_rwinfo(addr, res, RWINFO_READ|RWINFO_MEMORY, "rm");
++	if (m_ula_variant != ULA_VARIANT_NONE) store_rwinfo(addr, res, RWINFO_READ|RWINFO_MEMORY, "rm");
+ 	return res;
+ }
+ 
+@@ -938,7 +938,7 @@ Z80_INLINE void RM16( UINT32 addr, Z80_PAIR *r )
+ //#define WM(addr,value) Z80ProgramWrite(addr,value)
+ Z80_INLINE void WM(UINT16 addr, UINT8 value)
+ {
+-	store_rwinfo(addr, value, RWINFO_WRITE|RWINFO_MEMORY, "wm");
++	if (m_ula_variant != ULA_VARIANT_NONE) store_rwinfo(addr, value, RWINFO_WRITE|RWINFO_MEMORY, "wm");
+ 	Z80ProgramWrite(addr,value);
+ }
+ 
+@@ -964,7 +964,7 @@ Z80_INLINE UINT8 ROP(void)
+ 	unsigned pc = PCD;
+ 	PC++;
+ 	UINT8 res = Z80lastop = cpu_readop(pc);
+-	store_rwinfo(((PAIR*)(&pc))->w.l, res, RWINFO_READ|RWINFO_MEMORY, "rop");
++	if (m_ula_variant != ULA_VARIANT_NONE) store_rwinfo(((PAIR*)(&pc))->w.l, res, RWINFO_READ|RWINFO_MEMORY, "rop");
+ 	return res;
+ }
+ 
+@@ -980,7 +980,7 @@ Z80_INLINE UINT8 ARG(void)
+ 	PC++;
+ 
+ 	UINT8 res = cpu_readop_arg(pc);
+-	store_rwinfo(((PAIR*)(&pc))->w.l, res, RWINFO_READ|RWINFO_MEMORY, "arg");
++	if (m_ula_variant != ULA_VARIANT_NONE) store_rwinfo(((PAIR*)(&pc))->w.l, res, RWINFO_READ|RWINFO_MEMORY, "arg");
+ 
+ 	return res;
+ }
+@@ -991,9 +991,9 @@ Z80_INLINE UINT16 ARG16(void)
+ 	unsigned pc2 = (pc1+1)&0xffff;
+ 	PC += 2;
+ 	UINT8 res1 = cpu_readop_arg(pc1);
+-	store_rwinfo(((PAIR*)(&pc1))->w.l, res1, RWINFO_READ|RWINFO_MEMORY, "arg16 byte1");
++	if (m_ula_variant != ULA_VARIANT_NONE) store_rwinfo(((PAIR*)(&pc1))->w.l, res1, RWINFO_READ|RWINFO_MEMORY, "arg16 byte1");
+ 	UINT8 res2 = cpu_readop_arg(pc2);
+-	store_rwinfo(((PAIR*)(&pc2))->w.l, res2, RWINFO_READ|RWINFO_MEMORY, "arg16 byte2");
++	if (m_ula_variant != ULA_VARIANT_NONE) store_rwinfo(((PAIR*)(&pc2))->w.l, res2, RWINFO_READ|RWINFO_MEMORY, "arg16 byte2");
+ 
+ 	return res1 | (res2 << 8);
+ }
