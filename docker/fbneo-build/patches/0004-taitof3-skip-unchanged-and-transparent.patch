@@ -1,0 +1,114 @@
+taitof3: redraw only changed text tiles, skip transparent pixel runs
+
+The text layer (64x64 tiles) was redrawn in full every frame: tiles are
+now redrawn only when their value or their character changed, found by
+comparing with what was drawn (a state load included). The line mixer
+tested every pixel of every layer: runs of 8 transparent source pixels
+are skipped at once when contiguous in the source (no mosaic, zoom or
+wrap). The 1MB output clear is done only when the copy reads pixels the
+mixer does not write. Same output.
+
+diff --git a/src/burn/drv/taito/taitof3_video.cpp b/src/burn/drv/taito/taitof3_video.cpp
+--- a/src/burn/drv/taito/taitof3_video.cpp
++++ b/src/burn/drv/taito/taitof3_video.cpp
+@@ -40,6 +40,11 @@
+ 
+ static INT32 flipscreen = 0;
+ static INT32 last_flipscreen = -1;
++
++// text layer (bitmap_layer[8]): what is drawn there, so only changed tiles are redrawn
++static UINT16 vram_last_tile[64 * 64];
++static UINT8 vram_last_chars[0x4000];
++static INT32 vram_last_flip = -1; // -1: redraw everything
+ static INT32 last_pixel_yoffs = -1;
+ 
+ static UINT8 sprite_extra_planes = 0;
+@@ -147,6 +152,7 @@
+ 	flipscreen = 0;
+ 	last_flipscreen = -1;
+ 	last_pixel_yoffs = -1;
++	vram_last_flip = -1;
+ 
+ 	sprite_extra_planes = 0;
+ 	sprite_pen_mask = 0;
+@@ -236,6 +242,18 @@
+ {
+ 	UINT16 *ram = (UINT16*)TaitoVideoRam;
+ 
++	// The whole layer was redrawn every frame. Only tiles whose value or character changed
++	// since they were drawn are redrawn now (the 16KB of characters are compared, so any
++	// change is seen, a state load included).
++	const INT32 force = (vram_last_flip != flipscreen);
++	vram_last_flip = flipscreen;
++
++	UINT8 char_changed[0x100];
++	for (INT32 c = 0; c < 0x100; c++) {
++		char_changed[c] = force || memcmp(vram_last_chars + c * 64, TaitoCharsB + c * 64, 64) != 0;
++		if (char_changed[c]) memcpy(vram_last_chars + c * 64, TaitoCharsB + c * 64, 64);
++	}
++
+ 	for (INT32 offs = 0; offs < 64 * 64; offs++)
+ 	{
+ 		INT32 sx = (offs & 0x3f) * 8;
+@@ -244,6 +262,9 @@
+ 		INT32 tile = BURN_ENDIAN_SWAP_INT16(ram[offs]);
+ 
+ 		INT32 code = tile & 0x00ff;
++
++		if (!force && tile == vram_last_tile[offs] && !char_changed[code]) continue;
++		vram_last_tile[offs] = tile;
+ 		INT32 flipx = tile & 0x0100;
+ 		INT32 flipy = tile & 0x8000;
+ 
+@@ -803,7 +824,31 @@
+ 	const UINT8 blend_mask = gfx->blend_mask();
+ 	const UINT8 prio = gfx->prio;
+ 
++	// Runs of 8 transparent source pixels are skipped at once when they are contiguous in the
++	// source (no mosaic, no zoom, no wrap). Transparent pixels change nothing below.
++	const bool can_skip = !gfx->x_sample_enable && (KIND != LAYER_PF || gfx->x_scale == 0x100);
++
+ 	for (INT32 x = range.l; x < range.r; x++) {
++		if (can_skip && x + 8 <= range.r) {
++			if (KIND == LAYER_SPRITE) {
++				UINT64 a, b;
++				memcpy(&a, src + x, 8);
++				memcpy(&b, src + x + 4, 8);
++				if ((a | b) == 0) { x += 7; continue; }
++			} else {
++				INT32 sx0;
++				if (KIND == LAYER_PF)
++					sx0 = (((gfx->reg_fx_x + (x - H_START) * 0x100) >> 8) + H_START) & gfx->width_mask;
++				else
++					sx0 = (x + gfx->pv_sx) & 0x1ff;
++				if (sx0 + 7 <= ((KIND == LAYER_PF) ? gfx->width_mask : 0x1ff)) {
++					UINT64 f;
++					memcpy(&f, flags + sx0, 8);
++					if ((f & 0xf0f0f0f0f0f0f0f0ULL) == 0) { x += 7; continue; }
++				}
++			}
++		}
++
+ 		if (blend_mask == pri[x].src_blendmode)
+ 			continue; // layers cannot blend against the same blend mode
+ 
+@@ -1091,6 +1136,7 @@
+ 		if (nAction & ACB_WRITE) {
+ 			last_flipscreen = -1;
+ 			last_pixel_yoffs = -1;
++			vram_last_flip = -1;
+ 		}
+ 	}
+ }
+@@ -1134,7 +1180,10 @@
+ 	draw_pixel_layer();
+ 	draw_vram_layer();
+ 
+-	memset (output_bitmap, 0, 512 * 512 * sizeof(UINT32));
++	// scanline_draw writes columns H_START..H_START+H_VIS-1 of every line from clip_min_y to
++	// clip_max_y, and the copy below reads only those unless the screen goes past them
++	if (nScreenWidth > H_VIS || scanline_start + nScreenHeight > 256)
++		memset (output_bitmap, 0, 512 * 512 * sizeof(UINT32));
+ 
+ 	scanline_draw();
+ 

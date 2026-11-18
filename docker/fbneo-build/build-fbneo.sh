@@ -21,6 +21,9 @@
 # patches/0003 (Irem M92 layers), attract mode, uncapped: In The Hunt 42.7 ->
 # 55.2, R-Type Leo 47.3 -> 57.4, Ninja Baseball Bat Man 48.6 -> 64.3; frames
 # 600 and 3000 identical.
+# patches/0004 (Taito F3 video), attract mode, uncapped: Light Bringer 36.5 ->
+# 44.1, Elevator Action Returns 38.7 -> 43.6, Bubble Symphony 31.4 -> 37.6;
+# frames 600 and 3000 identical.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
