@@ -14,6 +14,10 @@
 # Measured on the R36 Ultra, Raiden 2 attract mode, steady state: shipped
 # fbneo_plus (GCC 5.4) 52.7 fps, this commit with GCC 14 and -mcpu=cortex-a35
 # 54.0, with patches/0001 55.7; frames 600, 1800 and 3000 identical.
+# patches/0002 (Konami K056832 tilemaps with linescroll): Metamorphic Force
+# level 2 from a save state, uncapped, 39 -> 62 fps (needs 59.2); frames 600
+# and 3000 identical in the attract mode of metamrph, mystwarr, viostorm,
+# xexex, gijoe, asterix, bucky, moomesa, dbz and dbz2.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"

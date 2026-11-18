@@ -1,0 +1,137 @@
+k056832: cull tilemap rows before walking their tiles
+
+With linescroll, K056832Draw calls draw_layer_internal once per screen
+line, and each call walked all 2048 tiles of the page to find the few on
+that line. The y cull depends only on the tile row: test it once per row
+and walk only the rows that pass. Of those, rows with no pixel line on
+this call still send their tiles through the tile callback (mystwarr
+counts tiles, metamrph patches the palette) and then stop, before the
+transparency lookup and the blitter. The register decode that was done
+per tile is done once per call. Same callbacks, same pixels, same order.
+
+diff --git a/src/burn/drv/konami/k056832.cpp b/src/burn/drv/konami/k056832.cpp
+--- a/src/burn/drv/konami/k056832.cpp
++++ b/src/burn/drv/konami/k056832.cpp
+@@ -534,7 +534,51 @@
+ 	}
+ 
+ 
+-	for (INT32 offs = 0; offs < 64 * 32; offs++)
++	// per tile in the original, the same for every tile of the call (callbacks cannot change them)
++	INT32 tile_layer;
++	if (m_layer_association)
++	{
++		tile_layer = m_layer_assoc_with_page[pageIndex];
++		if (tile_layer == -1)
++			tile_layer = 0;  // use layer 0's palette info for unmapped pages
++	}
++	else
++		tile_layer = m_active_layer;
++
++	const INT32 fbits = (BURN_ENDIAN_SWAP_INT16(k056832Regs[3]) >> 6) & 3;
++	const INT32 flip_override = (BURN_ENDIAN_SWAP_INT16(k056832Regs[1]) >> (tile_layer << 1)) & 0x3; // tile-flip override (see p.20 3.2.2 "REG2")
++	smptr = &k056832_shiftmasks[fbits];
++
++	for (INT32 row = 0; row < 32; row++)
++	{
++		// The y cull below depends only on the row: test it once per row instead of once per tile.
++		// With linescroll this function runs once per screen line, so 31 of the 32 rows go.
++		{
++			const INT32 sy = row * 8;
++			INT32 syyh, syyl;
++			if (tilemap_flip & 2) {
++				syyh = ((256 - 8) - (sy - 7) + scrolly) & 0xff;
++				syyl = ((256 - 8) - (sy - 0) + scrolly) & 0xff;
++			} else {
++				syyh = ((sy + 7) - scrolly) & 0xff;
++				syyl = ((sy + 0) - scrolly) & 0xff;
++			}
++			if ( (syyh < (miny-7) || syyh > (maxy+7)) && (syyl < (miny-7) || syyl > (maxy+7)) ) continue;
++		}
++
++		// Rows that pass the cull above but have no pixel line inside miny..maxy draw nothing. Their tiles
++		// still go through the tile callback (callbacks count tiles or patch the palette), then stop.
++		// Same test as the blitter's.
++		INT32 row_draws = 0;
++		for (INT32 iy = 0; iy < 8 && !row_draws; iy++) {
++			const INT32 ry = row * 8;
++			INT32 yy;
++			if (tilemap_flip & 2) yy = ((256 - 8) - (ry - iy) + scrolly) & 0xff;
++			else yy = (ry + iy - scrolly) & 0xff;
++			if (yy >= miny && yy <= maxy) row_draws = 1;
++		}
++
++	for (INT32 offs = row * 64; offs < row * 64 + 64; offs++)
+ 	{
+ 		INT32 sx = (offs & 0x3f) * 8;
+ 		INT32 sy = (offs / 0x40) * 8; // sy handling in blitter (down below...)
+@@ -544,7 +588,7 @@
+ 		if (tilemap_flip & 1) sx = (512 - 8) - sx;
+ 		if (sx < (minx-7) || sx > maxx) continue;
+ 
+-		{ // speed-up
++		{ // speed-up (the y cull is now per row, above)
+ 			// y is calculated in the tile blitter (see "// blitter" below)
+ 			// but we need to check clipping here in order to not need 8ghz to
+ 			// do linescrolling. (see: martial champ., 2nd attract game)
+@@ -555,20 +599,6 @@
+ 			//   Xexex level 4, watch the top and bottom of the screen while
+ 			// scrolling up and down in the level.
+ 			//   Martial Champ., 2nd attract-mode game - watch cpu usage.
+-			INT32 syyh;
+-			INT32 syyl;
+-			if (tilemap_flip & 2) {
+-				syyh= (256 - 8) - (sy - 7);
+-				syyh= (syyh + scrolly) & 0xff;
+-
+-				syyl= (256 - 8) - (sy - 0);
+-				syyl= (syyl + scrolly) & 0xff;
+-			} else {
+-				syyh = ((sy + 7) - scrolly) & 0xff;
+-				syyl = ((sy + 0) - scrolly) & 0xff;
+-			}
+-
+-			if ( (syyh < (miny-7) || syyh > (maxy+7)) && (syyl < (miny-7) || syyl > (maxy+7)) ) continue;
+ 		}
+ 
+ 		UINT16 *pMem = &K056832VideoRAM[(pageIndex << 12) + (offs << 1)];
+@@ -576,20 +606,8 @@
+ 		INT32 attr  = BURN_ENDIAN_SWAP_INT16(pMem[0]);
+ 		INT32 code  = BURN_ENDIAN_SWAP_INT16(pMem[1]);
+ 
+-		if (m_layer_association)
+-		{
+-			layer = m_layer_assoc_with_page[pageIndex];
+-			if (layer == -1)
+-				layer = 0;  // use layer 0's palette info for unmapped pages
+-		}
+-		else
+-			layer = m_active_layer;
+-
+-		INT32 fbits = (BURN_ENDIAN_SWAP_INT16(k056832Regs[3]) >> 6) & 3;
+-		INT32 flip  = (BURN_ENDIAN_SWAP_INT16(k056832Regs[1]) >> (layer << 1)) & 0x3; // tile-flip override (see p.20 3.2.2 "REG2")
+-		smptr = &k056832_shiftmasks[fbits];
+-
+-		flip &= (attr >> smptr->flips) & 3;
++		layer = tile_layer;
++		INT32 flip = flip_override & ((attr >> smptr->flips) & 3);
+ 		INT32 color = (attr & smptr->palm1) | (attr >> smptr->pals2 & smptr->palm2);
+ 		INT32 g_flags = flip & 3;
+ 
+@@ -603,6 +621,8 @@
+ 
+ 	//	code &= K056832RomExpMask; // mask in callback if necessary
+ 
++		if (!row_draws) continue;
++
+ 		if (!opaque) {
+ 			if (K056832TransTab[code]) continue;
+ 		}
+@@ -654,6 +674,7 @@
+ 			}
+ 		}
+ 	}
++	}
+ }
+ 
+ void K056832SetLinemap() // just for GIJOE
