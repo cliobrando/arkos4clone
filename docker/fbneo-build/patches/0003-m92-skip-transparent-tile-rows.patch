@@ -1,0 +1,122 @@
+m92: draw each layer in one walk, skip tile rows with nothing to draw
+
+Each M92 layer was drawn twice per line, once per priority pass, and every
+pixel was tested against the pass mask and the screen edges. For every
+layer and tile group the two pass masks are complementary, so each pixel
+belongs to one pass only: both passes now go in one walk, each pixel with
+its own pass priority. A table of the pens used by each 8x8 tile row
+(built once at init) skips rows with nothing to draw. Same pixels written.
+
+diff --git a/src/burn/drv/irem/d_m92.cpp b/src/burn/drv/irem/d_m92.cpp
+--- a/src/burn/drv/irem/d_m92.cpp
++++ b/src/burn/drv/irem/d_m92.cpp
+@@ -59,6 +59,7 @@
+ static INT32 m92_main_bank;
+ 
+ static INT32 graphics_mask[2] = { 0, 0 };
++static UINT16 *TileRowPens = NULL; // per 8x8 tile row: bit n set when pen n is used
+ 
+ static INT32 nInterleave = 256; // 256 scanlines
+ static INT32 nCyclesDone[2] = { 0, 0 };
+@@ -1837,6 +1838,14 @@
+ 	graphics_mask[0] = ((gfxlen1 * 2) - 1) / (8 * 8);
+ 	graphics_mask[1] = ((gfxlen2 * 2) - 1) / (16 * 16);
+ 
++	// lets draw_layer_byline skip tile rows whose pens are all transparent for the pass
++	TileRowPens = (UINT16*)BurnMalloc((graphics_mask[0] + 1) * 8 * sizeof(UINT16));
++	for (INT32 i = 0; i < (graphics_mask[0] + 1) * 8; i++) {
++		UINT16 pens = 0;
++		for (INT32 x = 0; x < 8; x++) pens |= 1 << (DrvGfxROM0[i * 8 + x] & 0x0f);
++		TileRowPens[i] = pens;
++	}
++
+ 	BurnYM2151InitBuffered(3579545, 1, NULL, 0);
+ 	YM2151SetIrqHandler(0, &m92YM2151IRQHandler);
+ 	BurnYM2151SetAllRoutes(0.40, BURN_SND_ROUTE_BOTH);
+@@ -1867,6 +1876,7 @@
+ 	pic8259_exit();
+ 
+ 	BurnFree(Mem);
++	BurnFree(TileRowPens);
+ 	
+ 	nPrevScreenPos = 0;
+ 	m92_banks = 0;
+@@ -1996,6 +2006,9 @@
+ 		{ { 0xffff, 0x0000 }, { 0x00ff, 0xff00 }, { 0x0001, 0xfffe } }
+ 	};
+ 
++	// forcelayer 2 draws both passes (1 then 0) in one walk. For every layer and group the two
++	// masks are complementary (mask1 | mask0 == 0xffff), so each pixel is written by one pass only
++	// and the order of the passes does not matter.
+ 	INT32 priority = forcelayer^1;
+ 
+ 	for (INT32 sy = start; sy < finish; sy++)
+@@ -2027,9 +2040,42 @@
+ 				if (flipx) x_xor = 7;
+ 
+ 				UINT8 *rom = DrvGfxROM0 + ((code & graphics_mask[0]) * 0x40) + romoff;
++				INT32 xx = sx - (scrollx_1&0x7);
++
++				if (forcelayer == 2) {
++					const UINT32 mask1 = transmask[layer][group][1]; // pass 1, priority 0
++					const UINT32 mask0 = transmask[layer][group][0]; // pass 0, priority 1
++					if ((TileRowPens[(code & graphics_mask[0]) * 8 + (romoff >> 3)] & ~(mask1 & mask0)) == 0) continue;
++
++					for (INT32 x = 0; x < 8; x++, xx++) {
++						if (xx < 0 || xx >= nScreenWidth) continue;
++
++						INT32 pxl = (rom[x ^ x_xor]&0x0f);
++						if (~mask1 & (1 << pxl)) {
++							dest[xx] = pxl | color;
++						} else if (~mask0 & (1 << pxl)) {
++							dest[xx] = pxl | color;
++							pri[xx] |= 1;
++						}
++					}
++					continue;
++				}
++
+ 				UINT32 mask = transmask[layer][group][forcelayer];
+ 
+-				INT32 xx = sx - (scrollx_1&0x7);
++				// nothing to draw when every pen of this tile row is transparent for this pass
++				if ((TileRowPens[(code & graphics_mask[0]) * 8 + (romoff >> 3)] & ~mask) == 0) continue;
++
++				if (xx >= 0 && xx + 7 < nScreenWidth) { // whole tile row on screen
++					for (INT32 x = 0; x < 8; x++, xx++) {
++						INT32 pxl = (rom[x ^ x_xor]&0x0f);
++						if (mask & (1 << pxl)) continue;
++
++						dest[xx] = pxl | color;
++						pri[xx] |= priority;
++					}
++					continue;
++				}
+ 
+ 				for (INT32 x = 0; x < 8; x++, xx++) {
+ 					if (xx < 0 || xx >= nScreenWidth) continue;
+@@ -2052,16 +2098,18 @@
+ 	if (~nBurnLayer & 1) memset(pTransDraw + (start * nScreenWidth), 0, nScreenWidth * (finish - start) * sizeof(INT16));
+ 
+ 	if (~pf_control[3][4] & 0x10) {
+-		if (nBurnLayer & 1) draw_layer_byline(start, finish, 2, 1);
+-		if (nBurnLayer & 1) draw_layer_byline(start, finish, 2, 0);
++		if (nBurnLayer & 1) draw_layer_byline(start, finish, 2, 2); // passes 1 and 0
+ 	} else {
+ 		memset(pTransDraw + (start * nScreenWidth), 0, nScreenWidth * (finish - start) * sizeof(INT16));
+ 	}
+ 
+-	if (nBurnLayer & 2) draw_layer_byline(start, finish, 1, 1);
+-	if (nBurnLayer & 2) draw_layer_byline(start, finish, 1, 0);
+-	if (nBurnLayer & 4) draw_layer_byline(start, finish, 0, 1);
+-	if (nBurnLayer & 8) draw_layer_byline(start, finish, 0, 0);
++	if (nBurnLayer & 2) draw_layer_byline(start, finish, 1, 2); // passes 1 and 0
++	if ((nBurnLayer & 0xc) == 0xc) {
++		draw_layer_byline(start, finish, 0, 2);
++	} else {
++		if (nBurnLayer & 4) draw_layer_byline(start, finish, 0, 1);
++		if (nBurnLayer & 8) draw_layer_byline(start, finish, 0, 0);
++	}
+ }
+ 
+ static INT32 DrvDraw()
