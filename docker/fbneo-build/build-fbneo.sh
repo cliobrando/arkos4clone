@@ -24,6 +24,9 @@
 # patches/0004 (Taito F3 video), attract mode, uncapped: Light Bringer 36.5 ->
 # 44.1, Elevator Action Returns 38.7 -> 43.6, Bubble Symphony 31.4 -> 37.6;
 # frames 600 and 3000 identical.
+# patches/0005 (Sega System 32 mixer), attract mode, uncapped: Spider-Man 39.3
+# -> 41.8, Golden Axe 2 36.3 -> 36.3, Rad Mobile 32.4 -> 33.4; frames 600 and
+# 3000 identical.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"

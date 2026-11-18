@@ -1,0 +1,47 @@
+segas32: leave layers transparent on a line out of the mixer scan
+
+For each pixel, the System 32 mixer walks the layers in priority order
+until one has an opaque pixel. A layer that is transparent on a whole
+line (solid_0000, or solid_ffff for the sprites) never stops that walk
+and leaves shadow alone, so each line now walks a copy of the order
+without those layers. Same pixels found, same output.
+
+diff --git a/src/burn/drv/sega/d_segas32.cpp b/src/burn/drv/sega/d_segas32.cpp
+--- a/src/burn/drv/sega/d_segas32.cpp
++++ b/src/burn/drv/sega/d_segas32.cpp
+@@ -4173,6 +4173,26 @@
+ 		layerbase[MIXER_LAYER_SPRITES] = get_layer_scanline(which ? MIXER_LAYER_MULTISPR : MIXER_LAYER_SPRITES, spry); // works ok instead of swap?
+ 		layerbase[MIXER_LAYER_BACKGROUND] = get_layer_scanline(MIXER_LAYER_BACKGROUND, y);
+ 
++		/* The layer order without the layers that are transparent on this whole line (they come back
++		   as solid_0000, or solid_ffff for the sprites): such a layer never stops the scans below and
++		   leaves shadow at 0, so the scans find the same pixels. The background always stays. */
++		mixer_layer_info roworder[16][8];
++		for (INT32 groupnum = 0; groupnum <= sprgroup_mask; groupnum++)
++		{
++			INT32 n = 0;
++			for (INT32 i = 0; i <= numlayers; i++)
++			{
++				const mixer_layer_info &e = layerorder[groupnum][i];
++				if (e.index == MIXER_LAYER_SPRITES) {
++					if (layerbase[MIXER_LAYER_SPRITES] == solid_ffff) continue;
++				} else if (e.index != MIXER_LAYER_BACKGROUND) {
++					if (layerbase[e.index] == solid_0000) continue;
++				}
++				roworder[groupnum][n++] = e;
++				if (e.index == MIXER_LAYER_BACKGROUND) break;
++			}
++		}
++
+ 		/* loop over columns */
+ 		for (INT32 x = cliprect.nMinx, sprx = sprx_start; x <= cliprect.nMaxx; x++, sprx += sprdx)
+ 		{
+@@ -4185,7 +4205,7 @@
+ 			INT32 sprgroup = (sprpix >> sprgroup_shift) & sprgroup_mask;
+ 
+ 			/* now scan the layers to find the topmost non-transparent pixel */
+-			for (first = &layerorder[sprgroup][0]; ; first++)
++			for (first = &roworder[sprgroup][0]; ; first++)
+ 			{
+ 				laynum = first->index;
+ 
