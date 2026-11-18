@@ -219,6 +219,7 @@
 				<cores>
 					<core>fbneo_plus</core>
 					<core>fbneo</core>
+					<core>fbneo_a35</core>
 					<core>km_fbneo_xtreme_amped</core>
 					<core>fbalpha2012</core>
 					<core>mame2003_plus</core>
@@ -275,6 +276,7 @@
 			<emulator name="retroarch">
 				<cores>
 					<core>fbneo</core>
+					<core>fbneo_a35</core>
 					<core>km_fbneo_xtreme_amped</core>
 					<core>fbalpha2012</core>
 					<core>mame2003_plus</core>
@@ -303,6 +305,7 @@
 			<emulator name="retroarch">
 				<cores>
 					<core>fbneo</core>
+					<core>fbneo_a35</core>
 					<core>km_fbneo_xtreme_amped</core>
 					<core>fbalpha2012</core>
 					<core>mame2003_plus</core>
@@ -331,6 +334,7 @@
 			<emulator name="retroarch">
 				<cores>
 					<core>fbneo</core>
+					<core>fbneo_a35</core>
 					<core>km_fbneo_xtreme_amped</core>
 					<core>fbalpha2012</core>
 					<core>mame2003_plus</core>
@@ -1035,6 +1039,7 @@
 				<cores>
 					<core>fbneo_plus</core>
 					<core>fbneo</core>
+					<core>fbneo_a35</core>
 				</cores>
 			</emulator>
 			<emulator name="retroarch32">
@@ -1879,6 +1884,7 @@
 			<emulator name="retroarch">
 				<cores>
 					<core>fbneo</core>
+					<core>fbneo_a35</core>
 					<core>km_fbneo_xtreme_amped</core>
 					<core>fbalpha2012</core>
 					<core>mame2003_plus</core>
@@ -1903,6 +1909,7 @@
 				<cores>
 					<core>neocd</core>
 					<core>fbneo</core>
+					<core>fbneo_a35</core>
 					<core>km_fbneo_xtreme_amped</core>
 				</cores>
 			</emulator>
@@ -3055,6 +3062,7 @@
 				<cores>
 					<core>fbneo_plus</core>
 					<core>fbneo</core>
+					<core>fbneo_a35</core>
 					<core>km_fbneo_xtreme_amped</core>
 					<core>fbalpha2012</core>
 					<core>mame2003_plus</core>
@@ -3111,6 +3119,7 @@
 			<emulator name="retroarch">
 				<cores>
 					<core>fbneo</core>
+					<core>fbneo_a35</core>
 					<core>km_fbneo_xtreme_amped</core>
 					<core>fbalpha2012</core>
 					<core>mame2003_plus</core>
@@ -3139,6 +3148,7 @@
 			<emulator name="retroarch">
 				<cores>
 					<core>fbneo</core>
+					<core>fbneo_a35</core>
 					<core>km_fbneo_xtreme_amped</core>
 					<core>fbalpha2012</core>
 					<core>mame2003_plus</core>
@@ -3167,6 +3177,7 @@
 			<emulator name="retroarch">
 				<cores>
 					<core>fbneo</core>
+					<core>fbneo_a35</core>
 					<core>km_fbneo_xtreme_amped</core>
 					<core>fbalpha2012</core>
 					<core>mame2003_plus</core>
@@ -3871,6 +3882,7 @@
 				<cores>
 					<core>fbneo_plus</core>
 					<core>fbneo</core>
+					<core>fbneo_a35</core>
 				</cores>
 			</emulator>
 			<emulator name="retroarch32">
@@ -4715,6 +4727,7 @@
 			<emulator name="retroarch">
 				<cores>
 					<core>fbneo</core>
+					<core>fbneo_a35</core>
 					<core>km_fbneo_xtreme_amped</core>
 					<core>fbalpha2012</core>
 					<core>mame2003_plus</core>
@@ -4739,6 +4752,7 @@
 				<cores>
 					<core>neocd</core>
 					<core>fbneo</core>
+					<core>fbneo_a35</core>
 					<core>km_fbneo_xtreme_amped</core>
 				</cores>
 			</emulator>

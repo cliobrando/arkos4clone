@@ -1,0 +1,92 @@
+psikyosh, deco32, suprnova: speed hacks on by default
+
+The "Speed Hacks" DIP switch turns on idle skipping: when the main CPU
+spins in its wait-for-the-next-frame loop, the emulator jumps to the
+next interrupt instead. It is off by default, so on a slow CPU these
+games run at a fraction of full speed (Gunbird 2 on a Cortex-A35, uncapped:
+40 fps off, 160 on). On by default for the lists of Gunbird 2, Strikers
+1945 II and III (and Gunbarich), Tetris TGM2, Captain America and The
+Avengers, Night Slashers, Cyvern and Puzzle Loop. Saved core options
+still override it.
+
+diff --git a/src/burn/drv/psikyo/d_psikyosh.cpp b/src/burn/drv/psikyo/d_psikyosh.cpp
+--- a/src/burn/drv/psikyo/d_psikyosh.cpp
++++ b/src/burn/drv/psikyo/d_psikyosh.cpp
+@@ -162,7 +162,7 @@
+ {
+ 	{0x12, 0xff, 0xff, 0x60, NULL			},
+ 	{0x13, 0xff, 0xff, 0x01, NULL			},
+-	{0x14, 0xff, 0xff, 0x00, NULL			},
++	{0x14, 0xff, 0xff, 0x01, NULL			},
+ 
+ 	{0   , 0xfe, 0   ,    2, "Service Mode"		},
+ 	{0x12, 0x01, 0x20, 0x20, "Off"			},
+@@ -262,7 +262,7 @@
+ {
+ 	{0x14, 0xff, 0xff, 0x60, NULL			},
+ 	{0x15, 0xff, 0xff, 0x02, NULL			},
+-	{0x16, 0xff, 0xff, 0x00, NULL			},
++	{0x16, 0xff, 0xff, 0x01, NULL			},
+ 
+ 	{0   , 0xfe, 0   ,    2, "Service Mode"		},
+ 	{0x14, 0x01, 0x20, 0x20, "Off"			},
+@@ -288,7 +288,7 @@
+ {
+ 	{0x14, 0xff, 0xff, 0x60, NULL			},
+ 	{0x15, 0xff, 0xff, 0x01, NULL			},
+-	{0x16, 0xff, 0xff, 0x00, NULL			},
++	{0x16, 0xff, 0xff, 0x01, NULL			},
+ 
+ 	{0   , 0xfe, 0   ,    2, "Service Mode"		},
+ 	{0x14, 0x01, 0x20, 0x20, "Off"			},
+@@ -314,7 +314,7 @@
+ {
+ 	{0x14, 0xff, 0xff, 0x60, NULL			},
+ 	{0x15, 0xff, 0xff, 0x00, NULL			},
+-	{0x16, 0xff, 0xff, 0x00, NULL			},
++	{0x16, 0xff, 0xff, 0x01, NULL			},
+ 
+ 	{0   , 0xfe, 0   ,    2, "Service Mode"		},
+ 	{0x14, 0x01, 0x20, 0x20, "Off"			},
+diff --git a/src/burn/drv/dataeast/d_deco32.cpp b/src/burn/drv/dataeast/d_deco32.cpp
+--- a/src/burn/drv/dataeast/d_deco32.cpp
++++ b/src/burn/drv/dataeast/d_deco32.cpp
+@@ -139,7 +139,7 @@
+ 	{0x00, 0xff, 0xff, 0xff, NULL			},
+ 	{0x01, 0xff, 0xff, 0x7f, NULL			},
+ 	{0x02, 0xff, 0xff, 0xff, NULL			},
+-	{0x03, 0xff, 0xff, 0x00, NULL			},
++	{0x03, 0xff, 0xff, 0x01, NULL			},
+ 
+ 	{0   , 0xfe, 0   ,    8, "Coin A"		},
+ 	{0x00, 0x01, 0x07, 0x00, "3 Coins 1 Credits"	},
+@@ -314,7 +314,7 @@
+ {
+ 	DIP_OFFSET(0x1d)
+ 	{0x00, 0xff, 0xff, 0x08, NULL			},
+-	{0x01, 0xff, 0xff, 0x00, NULL			},
++	{0x01, 0xff, 0xff, 0x01, NULL			},
+ 
+ 	{0   , 0xfe, 0   ,    2, "Service Mode "	},
+ 	{0x00, 0x01, 0x08, 0x08, "Off"			},
+diff --git a/src/burn/drv/pst90s/d_suprnova.cpp b/src/burn/drv/pst90s/d_suprnova.cpp
+--- a/src/burn/drv/pst90s/d_suprnova.cpp
++++ b/src/burn/drv/pst90s/d_suprnova.cpp
+@@ -204,7 +204,7 @@
+ static struct BurnDIPInfo VblokbrkDIPList[]=
+ {
+ 	{0x17, 0xff, 0xff, 0xff, NULL		},
+-	{0x18, 0xff, 0xff, 0x00, NULL		},
++	{0x18, 0xff, 0xff, 0x01, NULL		},
+ 
+ 	{0   , 0xfe, 0   ,    2, "Service Mode"	},
+ 	{0x17, 0x01, 0x01, 0x01, "Off"		},
+@@ -261,7 +261,7 @@
+ static struct BurnDIPInfo CyvernDIPList[]=
+ {
+ 	{0x13, 0xff, 0xff, 0xff, NULL		},
+-	{0x14, 0xff, 0xff, 0x00, NULL		},
++	{0x14, 0xff, 0xff, 0x01, NULL		},
+ 
+ 	{0   , 0xfe, 0   ,    2, "Service Mode" },
+ 	{0x13, 0x01, 0x01, 0x01, "Off"		},

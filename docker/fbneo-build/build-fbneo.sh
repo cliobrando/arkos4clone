@@ -27,6 +27,9 @@
 # patches/0005 (Sega System 32 mixer), attract mode, uncapped: Spider-Man 39.3
 # -> 41.8, Golden Axe 2 36.3 -> 36.3, Rad Mobile 32.4 -> 33.4; frames 600 and
 # 3000 identical.
+# patches/0006 turns the "Speed Hacks" DIP switch (idle skipping) on by default
+# for Psikyo SH-2, Deco32 and Super Nova games that have one: Gunbird 2,
+# uncapped, 40 fps off, 160 on. Saved core options still override it.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
