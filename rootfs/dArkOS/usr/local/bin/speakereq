@@ -20,9 +20,11 @@ the filter gains are solved for the requested response at the band
 centres, and the output is lowered by the highest boost so it cannot clip.
 The filter settings live in control files that alsaequal maps shared into
 every player: a change is heard at once, also in a running game. They are
-in /dev/shm, never on disk: the plugin writes its latency port into the
-mapping every period, so a file on disk is written back every 30 s and the
-audio thread waits for that write (the game paused with it).
+in /run/speakereq (RAM), never on disk: the plugin writes its latency port
+into the mapping every period, so a file on disk is written back every
+30 s and the audio thread waits for that write (the game paused with it).
+Not /dev/shm: logind deletes a user's files there when the user logs out
+(RemoveIPC), and the plugin then makes new ones with every band off.
 speakereq.service runs "restore" at boot to make them again.
 """
 import cmath
@@ -35,7 +37,8 @@ import sys
 
 CONFIG_DIR = "/home/ark/.config"
 STATE = os.path.join(CONFIG_DIR, "speakereq")  # preset, then the custom gains
-CONTROLS = "/dev/shm/speakereq%d.bin"  # alsaequal control files, in RAM
+RUN_DIR = "/run/speakereq"  # tmpfs; etc/tmpfiles.d/speakereq.conf
+CONTROLS = RUN_DIR + "/speakereq%d.bin"  # alsaequal control files
 ALSA_CONF = "/etc/alsa/conf.d/60-speakereq.conf"
 CAPS = "/usr/lib/ladspa/caps.so"
 EQUAL = "/usr/lib/aarch64-linux-gnu/alsa-lib/libasound_module_pcm_equal.so"
@@ -199,6 +202,8 @@ def write_controls(path, desc, values):
 
 
 def apply(target):
+    if not os.path.isdir(RUN_DIR):
+        subprocess.run(["sudo", "install", "-d", "-m", "0777", RUN_DIR], check=True)
     gains = solve(target)
     pre = -headroom(gains)
     desc = eqfa4p()
