@@ -18,7 +18,9 @@ REPORT="${2:-/dev/stdout}"
 # f2fs-tools: fsck.f2fs and mkfs.f2fs, for a root partition moved to F2FS
 # plymouth: the boot splash (theme, plymouthd.conf and unit drop-ins come
 #   from rootfs/dArkOS; without the package they do nothing)
-EXTRA_PACKAGES="f2fs-tools plymouth"
+# libasound2-plugin-equal caps: the sound equalizer (usr/local/bin/speakereq,
+#   ES Sound settings > Equalizer; ES hides the entry without them)
+EXTRA_PACKAGES="f2fs-tools plymouth libasound2-plugin-equal caps"
 [ -x "$ROOT/usr/bin/apt-get" ] || { echo "no apt-get in $ROOT" >&2; exit 1; }
 
 mounted=()

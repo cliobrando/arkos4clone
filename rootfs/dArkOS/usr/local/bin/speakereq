@@ -1,0 +1,290 @@
+#!/usr/bin/python3
+"""10-band sound equalizer for games (ALSA alsaequal + CAPS EqFA4p).
+
+  speakereq status            preset name, then the ten band gains in dB
+  speakereq off               take the equalizer out of the sound path
+  speakereq speaker           the recommended preset for the built-in speaker
+  speakereq custom G1 .. G10  own gains in dB (-12 .. 12)
+  speakereq restore           set up the saved setting again (at boot)
+
+Bands: 31 63 125 250 500 1k 2k 4k 8k 16k Hz.
+
+Games play through the system default (perfmax removes ~/.asoundrc before
+a game starts), so the equalizer is made the system default in
+/etc/alsa/conf.d; "off" removes that file and the sound path is as before.
+
+The ten bands are peaking filters, one octave wide, in three chained
+EqFA4p plugins (four bands each; CAPS Eq10 is not used: flat it adds
++3.6 dB and a -12 dB band cuts about 3 dB). Neighbouring bands overlap, so
+the filter gains are solved for the requested response at the band
+centres, and the output is lowered by the highest boost so it cannot clip.
+The filter settings live in control files that alsaequal maps shared into
+every player: a change is heard at once, also in a running game. They are
+in /dev/shm, never on disk: the plugin writes its latency port into the
+mapping every period, so a file on disk is written back every 30 s and the
+audio thread waits for that write (the game paused with it).
+speakereq.service runs "restore" at boot to make them again.
+"""
+import cmath
+import ctypes
+import math
+import os
+import struct
+import subprocess
+import sys
+
+CONFIG_DIR = "/home/ark/.config"
+STATE = os.path.join(CONFIG_DIR, "speakereq")  # preset, then the custom gains
+CONTROLS = "/dev/shm/speakereq%d.bin"  # alsaequal control files, in RAM
+ALSA_CONF = "/etc/alsa/conf.d/60-speakereq.conf"
+CAPS = "/usr/lib/ladspa/caps.so"
+EQUAL = "/usr/lib/aarch64-linux-gnu/alsa-lib/libasound_module_pcm_equal.so"
+
+FS = 44100.0
+BANDS = [31, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
+# EqFA4p tops out at 14 kHz; that filter is solved for the 16 kHz target.
+CENTRES = [31, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 14000]
+BW = 1.0           # octaves
+LIMIT = 12.0       # gains the menu offers
+FILTER_LIMIT = 24.0
+CHANNELS = 2
+STAGES = 3         # EqFA4p plugins, four bands each
+
+PRESETS = {
+    # The built-in speaker is a small driver: it cannot play the lowest
+    # bands, which only make it distort at high volume, and the low mids
+    # sound boxy. Cutting them leaves headroom; a little presence makes
+    # voices and effects clearer.
+    "speaker": [-12, -12, -8, -4, -1, 0, 1, 2, 1, 0],
+}
+
+ALSA_TEXT = """# Written by /usr/local/bin/speakereq (ES: Sound settings > Equalizer).
+# Games use the system default: send it through the equalizer.
+pcm.speakereq1 { type equal module "EqFA4p" channels 2 controls "%s" slave.pcm "speakereq2" }
+pcm.speakereq2 { type equal module "EqFA4p" channels 2 controls "%s" slave.pcm "speakereq3" }
+pcm.speakereq3 {
+	type equal
+	module "EqFA4p"
+	channels 2
+	controls "%s"
+	# the default card (a USB DAC sets it in /etc/asound.conf)
+	slave.pcm "plughw"
+}
+pcm.!default {
+	type plug
+	slave.pcm "speakereq1"
+}
+""" % tuple(CONTROLS % (i + 1) for i in range(STAGES))
+
+
+# ---- the filter: caps dsp/v4f_IIR2.h MREqv4 (Mitra-Regalia peaking EQ)
+
+def peak(fhz, f0, gain_db):
+    g = 10 ** (gain_db / 20)
+    f = f0 / FS
+    s0 = -math.cos(2 * math.pi * f)
+    b = BW * 7 * f / math.sqrt(g)
+    s1 = (1 - b) / (1 + b)
+    z = cmath.exp(-2j * math.pi * fhz / FS)
+    a = (s1 + s0 * (1 + s1) * z + z * z) / (1 + s0 * (1 + s1) * z + s1 * z * z)
+    return ((1 + a) + g * (1 - a)) / 2
+
+
+def response(fhz, gains):
+    h = 1
+    for f0, g in zip(CENTRES, gains):
+        h *= peak(fhz, f0, g)
+    return 20 * math.log10(abs(h))
+
+
+def solve(target):
+    """Filter gains whose combined response hits target at the band
+    centres (Newton's method, numeric Jacobian)."""
+    g = list(target)
+    for _ in range(12):
+        r = [response(f, g) for f in BANDS]
+        err = [t - x for t, x in zip(target, r)]
+        if max(abs(e) for e in err) < 0.05:
+            break
+        jac = []
+        for i in range(10):
+            d = list(g)
+            d[i] += 0.1
+            jac.append([(response(f, d) - x) / 0.1 for f, x in zip(BANDS, r)])
+        # rows of jac are d response / d g_i; solve J^T dg = err
+        m = [[jac[i][k] for i in range(10)] + [err[k]] for k in range(10)]
+        for c in range(10):
+            p = max(range(c, 10), key=lambda k: abs(m[k][c]))
+            m[c], m[p] = m[p], m[c]
+            for k in range(10):
+                if k != c and m[c][c]:
+                    q = m[k][c] / m[c][c]
+                    m[k] = [a - q * b for a, b in zip(m[k], m[c])]
+        dg = [m[k][10] / m[k][k] if m[k][k] else 0 for k in range(10)]
+        g = [max(-FILTER_LIMIT, min(FILTER_LIMIT, a + b)) for a, b in zip(g, dg)]
+    return g
+
+
+def headroom(gains):
+    """Highest boost of the response, 20 Hz to 20 kHz."""
+    top = max(response(20 * 1000 ** (i / 200), gains) for i in range(201))
+    return max(0.0, top)
+
+
+# ---- alsaequal control files (struct LADSPA_Control in ladspa_utils.h):
+# four unsigned longs, two ints, then per control port
+# {int index; float data[16]; int type;}; the size alsaequal expects also
+# counts num_controls * channels floats more.
+
+HEADER = struct.Struct("=QQQQii")
+ENTRY = 4 + 16 * 4 + 4
+
+
+class _Hint(ctypes.Structure):
+    _fields_ = [("hint", ctypes.c_int), ("lo", ctypes.c_float), ("hi", ctypes.c_float)]
+
+
+class _Desc(ctypes.Structure):
+    _fields_ = [("uid", ctypes.c_ulong), ("label", ctypes.c_char_p),
+                ("props", ctypes.c_int), ("name", ctypes.c_char_p),
+                ("maker", ctypes.c_char_p), ("copyright", ctypes.c_char_p),
+                ("ports", ctypes.c_ulong), ("port_desc", ctypes.POINTER(ctypes.c_int)),
+                ("port_names", ctypes.POINTER(ctypes.c_char_p)),
+                ("hints", ctypes.POINTER(_Hint))]
+
+
+def eqfa4p():
+    fn = ctypes.CDLL(CAPS).ladspa_descriptor
+    fn.restype = ctypes.POINTER(_Desc)
+    fn.argtypes = [ctypes.c_ulong]
+    i = 0
+    while fn(i):
+        d = fn(i).contents
+        if d.label == b"EqFA4p":
+            return d
+        i += 1
+    raise SystemExit("speakereq: no EqFA4p in " + CAPS)
+
+
+def write_controls(path, desc, values):
+    """values: port index -> value. Written in place when the file is
+    already right, since players map it shared."""
+    control = [p for p in range(desc.ports) if desc.port_desc[p] & 4]   # LADSPA_PORT_CONTROL
+    audio_in = [p for p in range(desc.ports) if desc.port_desc[p] == 9][0]
+    audio_out = [p for p in range(desc.ports) if desc.port_desc[p] == 10][0]
+    length = HEADER.size + len(control) * ENTRY + len(control) * 4 * CHANNELS
+    hdr = (length, desc.uid, CHANNELS, len(control), audio_in, audio_out)
+    try:
+        with open(path, "rb") as f:
+            ok = os.path.getsize(path) == length and HEADER.unpack(f.read(HEADER.size)) == hdr
+    except OSError:
+        ok = False
+    if not ok:
+        buf = bytearray(length)
+        HEADER.pack_into(buf, 0, *hdr)
+        for k, p in enumerate(control):
+            output = 0 if desc.port_desc[p] & 1 else 1                  # LADSPA_PORT_INPUT
+            struct.pack_into("=i", buf, HEADER.size + k * ENTRY, p)
+            struct.pack_into("=i", buf, HEADER.size + k * ENTRY + 68, output)
+        tmp = path + ".new"
+        with open(tmp, "wb") as f:
+            f.write(buf)
+        os.chmod(tmp, 0o666)  # games run as ark and as root
+        os.replace(tmp, path)
+    with open(path, "r+b") as f:
+        for k, p in enumerate(control):
+            if p in values:
+                f.seek(HEADER.size + k * ENTRY + 4)
+                f.write(struct.pack("=%df" % CHANNELS, *([float(values[p])] * CHANNELS)))
+
+
+def apply(target):
+    gains = solve(target)
+    pre = -headroom(gains)
+    desc = eqfa4p()
+    for s in range(STAGES):
+        values = {16: pre if s == STAGES - 1 else 0.0}  # output gain, dB
+        for b in range(4):
+            i = s * 4 + b
+            on = i < len(gains)
+            # ports per band: active, frequency, bandwidth, gain
+            values.update({b * 4: 1.0 if on else 0.0,
+                           b * 4 + 1: CENTRES[i] if on else 1000.0,
+                           b * 4 + 2: BW,
+                           b * 4 + 3: gains[i] if on else 0.0})
+        write_controls(CONTROLS % (s + 1), desc, values)
+
+
+# ---- state
+
+def read_state():
+    preset, custom = "off", list(PRESETS["speaker"])
+    try:
+        with open(STATE) as f:
+            lines = f.read().split("\n")
+        if lines[0] in ("off", "speaker", "custom"):
+            preset = lines[0]
+        vals = [float(v) for v in lines[1].split()]
+        if len(vals) == 10:
+            custom = vals
+    except (OSError, IndexError, ValueError):
+        pass
+    if preset != "off" and not os.path.exists(ALSA_CONF):
+        preset = "off"
+    return preset, custom
+
+
+def save_state(preset, custom):
+    with open(STATE, "w") as f:
+        f.write(preset + "\n" + " ".join("%g" % g for g in custom) + "\n")
+
+
+def main(argv):
+    cmd = argv[1] if len(argv) > 1 else "status"
+    preset, custom = read_state()
+    if cmd == "restore":
+        if preset == "off":
+            return 0
+        cmd = preset
+        argv = argv[:2] + ["%g" % g for g in custom]
+    if cmd == "status":
+        print(preset)
+        print(" ".join("%g" % g for g in (PRESETS.get(preset) or custom)))
+        return 0
+    if cmd == "off":
+        subprocess.run(["sudo", "rm", "-f", ALSA_CONF], check=True)
+        save_state("off", custom)
+        return 0
+    if cmd in PRESETS:
+        target = PRESETS[cmd]
+    elif cmd == "custom":
+        try:
+            target = [max(-LIMIT, min(LIMIT, float(v))) for v in argv[2:12]]
+        except ValueError:
+            target = []
+        if len(target) != 10:
+            print(__doc__.strip(), file=sys.stderr)
+            return 2
+        custom = target
+    else:
+        print(__doc__.strip(), file=sys.stderr)
+        return 2
+    for need in (CAPS, EQUAL):
+        if not os.path.exists(need):
+            print("speakereq: missing " + need, file=sys.stderr)
+            return 1
+    apply(target)
+    try:
+        current = open(ALSA_CONF).read()
+    except OSError:
+        current = None
+    if current != ALSA_TEXT:
+        subprocess.run(["sudo", "mkdir", "-p", os.path.dirname(ALSA_CONF)], check=True)
+        subprocess.run(["sudo", "tee", ALSA_CONF], input=ALSA_TEXT.encode(),
+                       stdout=subprocess.DEVNULL, check=True)
+    save_state(cmd, custom)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

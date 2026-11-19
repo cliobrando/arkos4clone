@@ -1,0 +1,13 @@
+[Unit]
+Description=Sound equalizer: set up the saved setting
+After=local-fs.target
+Before=emulationstation.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=ark
+ExecStart=/usr/local/bin/speakereq restore
+
+[Install]
+WantedBy=multi-user.target
